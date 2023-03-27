@@ -1,0 +1,36 @@
+from hydra.utils import instantiate
+
+import lightning as L
+
+from torch.utils.data import DataLoader
+
+from diffusion.configs import DatasetCfg, DataLoaderCfg
+
+
+class GlueDataModule(L.LightningDataModule):
+    def __init__(
+        self,
+        train_dataset_cfg: DatasetCfg,
+        valid_dataset_cfg: DatasetCfg,
+        train_dataloader_cfg: DataLoaderCfg,
+        valid_dataloader_cfg: DataLoaderCfg,
+    ):
+        super().__init__()
+        self.train_dataset_cfg = train_dataset_cfg
+        self.valid_dataset_cfg = valid_dataset_cfg
+
+        self.train_dataloader_cfg = train_dataloader_cfg
+        self.valid_dataloader_cfg = valid_dataloader_cfg
+
+    def setup(self, stage: str) -> None:
+        self.train_dataset = instantiate(self.train_dataset_cfg)
+        self.valid_dataset = instantiate(self.valid_dataset_cfg)
+
+    def train_dataloader(self):
+        return instantiate(self.train_dataloader_cfg, dataset=self.train_dataset)
+
+    def val_dataloader(self):
+        return instantiate(self.valid_dataloader_cfg, dataset=self.valid_dataset)
+
+    def test_dataloader(self):
+        return self.val_dataloader()

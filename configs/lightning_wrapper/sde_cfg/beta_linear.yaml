@@ -1,0 +1,6 @@
+_target_: "diffusion.dynamics.BetaLinear"
+N: 1000
+beta_min: 0.1
+beta_max: 20
+prediction: "x_0_a_x_t"
+ode_sampling: False

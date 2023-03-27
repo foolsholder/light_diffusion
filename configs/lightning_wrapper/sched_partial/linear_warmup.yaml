@@ -1,0 +1,4 @@
+_target_: "diffusion.LinearWarmupLR"
+_partial_: True
+warmup_steps: 5000
+warmup_start_lr: 0

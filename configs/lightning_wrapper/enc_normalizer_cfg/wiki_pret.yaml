@@ -1,0 +1,3 @@
+_target_: "diffusion.EncNormalizer"
+enc_mean_path: "wiki_pret_old/encodings-bert_base-wiki-mean.pt"
+enc_std_path: "wiki_pret_old/encodings-bert_base-wiki-std.pt"

@@ -1,0 +1,11 @@
+log.txt
+train_ddp_process_*.log
+__pycache__
+.hydra
+.eggs
+diffusion.egg-info
+lightning_logs
+outputs
+wandb
+wiki_pret_old
+experiments

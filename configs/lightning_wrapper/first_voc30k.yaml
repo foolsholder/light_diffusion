@@ -1,0 +1,8 @@
+_target_: "diffusion.FirstVoc30k"
+defaults:
+  - optim_partial/adam
+  - sched_partial/linear_warmup
+  - enc_normalizer_cfg/wiki_pret
+  - sde_cfg/beta_linear
+
+ce_coef: 0.1
