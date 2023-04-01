@@ -40,7 +40,7 @@ def main(exp_folder: str, ckpt_num: int):
 
     trainer = Trainer(
         accelerator='auto',
-        precision='16-mixed'
+        precision='32'
     )
 
     cfg.datamodule.valid_dataloader_cfg.batch_size = 4

@@ -8,7 +8,7 @@ from datasets import load_dataset
 
 
 class SST2Dataset(Dataset):
-    def __init__(self, max_length: int = 72, train: bool = True) -> None:
+    def __init__(self, max_length: int = 71, train: bool = True) -> None:
         super().__init__()
         self.tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
         self.max_length = max_length
@@ -33,6 +33,8 @@ class SST2Dataset(Dataset):
            max_length=self.max_length
         )
         dct['labels'] = [label]
+        dct['input_ids'][0:1] = [dct['input_ids'][0], label * 2748 + (1 - label) * 2053]
+        dct['attention_mask'][0:1] = [1, 1]
         dct = {k: torch.LongTensor(v) for k, v in dct.items()}
         #print(dct['input_ids'][0], self.tokenizer.vocab['[CLS]'])
         #dec = []
@@ -41,5 +43,6 @@ class SST2Dataset(Dataset):
         #    if obj == self.tokenizer.vocab['[SEP]']:
         #        break
         #print(self.tokenizer.decode(dec), sent)
-        dct['input_ids'][0] = 2053 * (1 - label) + label * 2748
+        # ['CLS']
+        #dct['input_ids'][0] = 2053 * (1 - label) + label * 2748
         return dct

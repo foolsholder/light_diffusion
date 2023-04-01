@@ -18,8 +18,9 @@ def extend_for_label(attention_mask):
     seq_len = attention_mask.size(1)
     result = torch.zeros((batch_size, 1, seq_len, seq_len), device=attention_mask.device)
     for idx in range(batch_size):
-        result[idx, 0, 1:size_mask[idx], 1:size_mask[idx]] = 1.0
-        result[idx, 0, 0, :size_mask[idx]] = 1.0
+        result[idx, 0, :size_mask[idx], :size_mask[idx]] = 1.0
+        result[idx, 0, :size_mask[idx], 1] = 0
+        result[idx, 0, 1, 1] = 1
     return convert_mask_for_sum(result)
 
 

@@ -21,10 +21,10 @@ EPOCH_OUTPUT = List[STEP_OUTPUT]
 
 from diffusion.dynamics import SDE, RSDE, EulerSolver
 from diffusion.utils import calc_model_grads_norm, calc_model_weights_norm, filter_losses
-from diffusion.models import BertLMHeadModel as BB, ScoreEstimator
+from diffusion.models import BertLMHeadModel as TBB, ScoreEstimator
 from diffusion.helper import LinearWarmupLR
 from diffusion.dataset import EncNormalizer
-from transformers.models.bert.modeling_bert import BertLMHeadModel as TBB
+from transformers.models.bert.modeling_bert import BertLMHeadModel as BB
 
 
 class FirstVoc2(L.LightningModule):
@@ -276,8 +276,13 @@ class FirstVoc2(L.LightningModule):
         pred_encodings = self.enc_normalizer.denormalize(clean_x)
         #logits = self.encoder.forward(pred_encodings=pred_encodings).logits
         logits = self.encoder.cls(encodings)
+        logits = self.encoder(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']).logits
         tok = self.tokenizer.batch_decode(logits[:, 0].argmax(dim=-1))
-        #print(tok, logits[:, 0].argmax(dim=-1))
+        full_tok = self.tokenizer.batch_decode(logits.argmax(dim=-1))
+        true_tok = self.tokenizer.batch_decode(batch['input_ids'][:, 0])
+        full_true_tok = self.tokenizer.batch_decode(batch['input_ids'])
+        print(tok, true_tok, logits[:, 0].argmax(dim=-1), batch['input_ids'][:, 0])
+        print(full_tok[0], '\n####\n', full_true_tok[0])
         logits_binary = logits[:, 0, [2053, 2748]]
         pred_label = torch.argmax(logits_binary, dim=-1).float()#.reshape(self.test_count, batch_size).mean(dim=0)
         self.test_accuracy.update(pred_label, labels_binary)
@@ -287,6 +292,7 @@ class FirstVoc2(L.LightningModule):
         self.test_accuracy.reset()
         print('test-start')
         self.encoder = TBB.from_pretrained('bert-base-uncased').cuda().eval()
+        # self.encoder.train()
 
     def reset_test_accuracy(self):
         self.test_accuracy.reset()
