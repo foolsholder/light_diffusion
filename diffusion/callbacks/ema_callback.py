@@ -44,9 +44,10 @@ class EMACallback(Callback):
         if self.ema is not None:
             return {"state_dict_ema": self.ema.state_dict()}
 
-    def on_load_checkpoint(self, callback_state):
-        if self.ema is not None:
-            self.ema.load_state_dict(callback_state["state_dict_ema"])
+    def on_load_checkpoint(self, trainer: Trainer, pl_module: LightningModule, checkpoint: Dict[str, Any]) -> None:
+        if 'callbacks' in checkpoint and 'EMACallback' in checkpoint['callbacks']:
+            self.ema = ExponentialMovingAverage(pl_module.parameters(), 0)
+            self.ema.load_state_dict(checkpoint['callbacks']['EMACallback'])
 
     def store(self, parameters):
         self.ema.store(parameters)

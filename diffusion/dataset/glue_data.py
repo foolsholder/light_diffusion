@@ -34,7 +34,9 @@ class SST2Dataset(Dataset):
         )
         dct['labels'] = [label]
         dct['input_ids'][0:1] = [dct['input_ids'][0], label * 2748 + (1 - label) * 2053]
+        dct['token_type_ids'][0:1] = [dct['token_type_ids'][0], dct['token_type_ids'][1]]
         dct['attention_mask'][0:1] = [1, 1]
+        #print(dct['token_type_ids'])
         dct = {k: torch.LongTensor(v) for k, v in dct.items()}
         #print(dct['input_ids'][0], self.tokenizer.vocab['[CLS]'])
         #dec = []

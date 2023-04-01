@@ -63,8 +63,8 @@ class FirstVoc2(L.LightningModule):
         rsde = RSDE(self.sde)
         self.solver = EulerSolver(rsde, self.sde.ode_sampling)
 
-        self._optim_partial = optim_partial
-        self._sched_partial = sched_partial
+        self._optim_partial = instantiate(optim_partial)
+        self._sched_partial = instantiate(sched_partial)
 
         self.ce_coef = ce_coef
 
@@ -281,8 +281,8 @@ class FirstVoc2(L.LightningModule):
         full_tok = self.tokenizer.batch_decode(logits.argmax(dim=-1))
         true_tok = self.tokenizer.batch_decode(batch['input_ids'][:, 0])
         full_true_tok = self.tokenizer.batch_decode(batch['input_ids'])
-        print(tok, true_tok, logits[:, 0].argmax(dim=-1), batch['input_ids'][:, 0])
-        print(full_tok[0], '\n####\n', full_true_tok[0])
+        #print(tok, true_tok, logits[:, 0].argmax(dim=-1), batch['input_ids'][:, 0])
+        #print(full_tok[0], '\n####\n', full_true_tok[0])
         logits_binary = logits[:, 0, [2053, 2748]]
         pred_label = torch.argmax(logits_binary, dim=-1).float()#.reshape(self.test_count, batch_size).mean(dim=0)
         self.test_accuracy.update(pred_label, labels_binary)
@@ -290,8 +290,8 @@ class FirstVoc2(L.LightningModule):
 
     def on_test_epoch_start(self):
         self.test_accuracy.reset()
-        print('test-start')
-        self.encoder = TBB.from_pretrained('bert-base-uncased').cuda().eval()
+        #print('test-start')
+        #self.encoder = TBB.from_pretrained('bert-base-uncased').cuda().eval()
         # self.encoder.train()
 
     def reset_test_accuracy(self):

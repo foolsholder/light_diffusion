@@ -44,7 +44,13 @@ def main(cfg: Config):
 
     with open(osp.join(exp_folder, 'config.yaml'), 'w') as fout:
         print(yaml_cfg, file=fout)
-    exit(0)
+
+    if torch.cuda.device_count() > 1:
+        strategy = DDPStrategy(
+            find_unused_parameters=False,
+        )
+    else:
+        strategy = 'auto'
 
     trainer = Trainer(
         max_steps=cfg.max_steps,
@@ -60,7 +66,8 @@ def main(cfg: Config):
                 filename='{step:02d}',
                 every_n_train_steps=cfg.every_n_train_steps,
                 save_top_k=-1,
-                auto_insert_metric_name=True
+                auto_insert_metric_name=True,
+                save_weights_only=False
             ),
             LearningRateMonitor(logging_interval='step'),
             EMACallback(0.9999)
@@ -68,11 +75,9 @@ def main(cfg: Config):
         enable_checkpointing=True,
         gradient_clip_algorithm="norm",
         gradient_clip_val=cfg.grad_clip_norm,
-        precision='16-mixed',
+        precision='32',
         accelerator='auto',
-        strategy=DDPStrategy(
-            find_unused_parameters=False,
-        )
+        strategy=strategy
     )
 
     trainer.fit(
