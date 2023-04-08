@@ -11,7 +11,7 @@ from transformers.models.bert.modeling_bert import BertOnlyMLMHead, \
 def convert_mask_for_sum(attention_mask):
     return (1.0 - attention_mask) * torch.finfo(torch.float32).min
 
-def extend_for_label(attention_mask):
+def extend_for_label(attention_mask, mask_pos: int = 0):
     # assert len(attention_mask.shape) == 2
     size_mask = attention_mask.sum(dim=-1).long()
     batch_size = attention_mask.size(0)
@@ -19,12 +19,16 @@ def extend_for_label(attention_mask):
     result = torch.zeros((batch_size, 1, seq_len, seq_len), device=attention_mask.device)
     for idx in range(batch_size):
         result[idx, 0, :size_mask[idx], :size_mask[idx]] = 1.0
-        result[idx, 0, :size_mask[idx], 1] = 0
-        result[idx, 0, 1, 1] = 1
+        result[idx, 0, :size_mask[idx], mask_pos] = 0
+        result[idx, 0, mask_pos, mask_pos] = 1
     return convert_mask_for_sum(result)
 
 
 class BertModel(TBertModel):
+    def __init__(self, config, add_pooling_layer=True, label_mask_pos: int = 0):
+        super().__init__(config, add_pooling_layer=add_pooling_layer)
+        self.label_mask_pos = label_mask_pos
+
     def forward(
             self,
             input_ids: Optional[torch.Tensor] = None,
@@ -97,7 +101,7 @@ class BertModel(TBertModel):
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
-        extended_attention_mask: torch.Tensor = extend_for_label(attention_mask)
+        extended_attention_mask: torch.Tensor = extend_for_label(attention_mask, self.label_mask_pos)
 
         # If a 2D or 3D attention mask is provided for the cross-attention
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
@@ -158,10 +162,10 @@ class BertLMHeadModel(BertPreTrainedModel):
     _keys_to_ignore_on_load_unexpected = [r"pooler"]
     _keys_to_ignore_on_load_missing = [r"position_ids", r"predictions.decoder.bias"]
 
-    def __init__(self, config):
+    def __init__(self, config, label_mask_pos: int = 0):
         super().__init__(config)
 
-        self.bert = BertModel(config)
+        self.bert = BertModel(config, label_mask_pos=label_mask_pos)
         self.cls = BertOnlyMLMHead(config)
 
         # Initialize weights and apply final processing

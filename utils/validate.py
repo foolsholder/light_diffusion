@@ -14,8 +14,10 @@ from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.strategies.ddp import DDPStrategy
 from glob import glob
+from torch_ema import ExponentialMovingAverage
 
 from diffusion import Config
+import diffusion
 
 
 def main(exp_folder: str, ckpt_num: int):
@@ -29,25 +31,40 @@ def main(exp_folder: str, ckpt_num: int):
     wrapped_model = instantiate(cfg.lightning_wrapper, _recursive_=False)
     ckpt_path = osp.join(exp_folder, f'step={ckpt_num}.ckpt')
     print(f'ckpt_path={ckpt_path}')
-    wrapped_model.load_state_dict(
-        torch.load(
-            ckpt_path,
-            map_location='cpu'
-        ),
-        strict=False
+    ckpt = torch.load(
+        ckpt_path,
+        map_location='cpu'
     )
+    wrapped_model.load_state_dict(
+        ckpt['state_dict'],
+        strict=True
+    )
+    #wrapped_model.score_estimator.load_state_dict(
+    #    torch.load('score_estimator.pth', map_location='cpu')
+    #)
     wrapped_model.eval()
+    #ema = ExponentialMovingAverage(wrapped_model.parameters(), 0)
+    #ema.load_state_dict(ckpt['callbacks']['EMACallback'])
+    #ema.copy_to(wrapped_model.parameters())
 
     trainer = Trainer(
         accelerator='auto',
         precision='32'
     )
 
-    cfg.datamodule.valid_dataloader_cfg.batch_size = 4
+    cfg.datamodule.valid_dataloader_cfg.batch_size = 2
     trainer.test(
         wrapped_model,
         datamodule=instantiate(cfg.datamodule, _recursive_=False)
     )
+    wrapped_model: diffusion.lightning_wrappers.ZeroVoc2
+
+    save_folder = osp.join('accuracy', osp.basename(exp_folder))
+    if not osp.exists(save_folder):
+        os.makedirs(save_folder)
+    acc = wrapped_model.test_accuracy.compute()
+    with open(osp.join(save_folder, f'step_{ckpt_num}.txt'), 'w') as fout:
+        print(acc, file=fout)
 
 import argparse
 def parse_args():

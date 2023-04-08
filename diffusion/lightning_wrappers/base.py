@@ -27,15 +27,16 @@ from diffusion.dataset import EncNormalizer
 from transformers.models.bert.modeling_bert import BertLMHeadModel as BB
 
 
-class FirstVoc2(L.LightningModule):
+class ZeroVoc2(L.LightningModule):
     def __init__(
         self,
         enc_normalizer_cfg: EncNormalizer,
         sde_cfg: SDE,
         optim_partial: Callable[[(...,)], torch.optim.Optimizer],
         sched_partial: Callable[[(...,)], LinearWarmupLR],
+        label_mask_pos: int = 0,
         ce_coef: float = 0,
-        test_count: int = 11
+        test_count: int = 11,
     ) -> None:
         super().__init__()
         self.test_count = test_count
@@ -44,7 +45,12 @@ class FirstVoc2(L.LightningModule):
         bert_cfg_name = 'bert-base-uncased'
         bert_config = BertConfig(bert_cfg_name)
 
-        self.encoder: TBB = TBB.from_pretrained(bert_cfg_name).eval()
+        #self.encoder: TBB = TBB(bert_config, label_mask_pos=label_mask_pos).eval()
+        #self.encoder.load_state_dict(
+        #    BB.from_pretrained(bert_cfg_name).state_dict(),
+        #)
+        self.label_mask_pos = label_mask_pos
+        self.encoder = TBB.from_pretrained(bert_cfg_name, label_mask_pos=label_mask_pos).eval()
         for param in self.encoder.parameters():
             param.requires_grad = False
 
@@ -256,7 +262,7 @@ class FirstVoc2(L.LightningModule):
         ddrm_mask[:, 0] = 0
         ddrm_mask = ddrm_mask.bool()
 
-        #clean_x = torch.tile(clean_x, (self.test_count, 1, 1))
+        clean_x = torch.tile(clean_x, (self.test_count, 1, 1))
         attn_mask = torch.tile(attn_mask, (self.test_count, 1))
         ddrm_mask = torch.tile(ddrm_mask, (self.test_count, 1))
 
@@ -269,24 +275,23 @@ class FirstVoc2(L.LightningModule):
         #bar = trange
         bar = range
         for idx in bar(self.sde.N):
-            break
             time_tensor = torch.ones(aug_batch_size, device=clean_x.device) * timesteps[idx]
             x_t = self.ddrm_step(x_t, time_tensor, clean_x, ddrm_mask, attn_mask)
         #print(batch['input_ids'][:4, 0])
-        pred_encodings = self.enc_normalizer.denormalize(clean_x)
-        #logits = self.encoder.forward(pred_encodings=pred_encodings).logits
-        logits = self.encoder.cls(encodings)
-        logits = self.encoder(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']).logits
-        tok = self.tokenizer.batch_decode(logits[:, 0].argmax(dim=-1))
-        full_tok = self.tokenizer.batch_decode(logits.argmax(dim=-1))
-        true_tok = self.tokenizer.batch_decode(batch['input_ids'][:, 0])
-        full_true_tok = self.tokenizer.batch_decode(batch['input_ids'])
+        pred_encodings = self.enc_normalizer.denormalize(x_t)
+        logits = self.encoder.forward(pred_encodings=pred_encodings).logits
+        #logits = self.encoder.cls(encodings)
+        #logits = self.encoder(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']).logits
+        #tok = self.tokenizer.batch_decode(logits[:, 0].argmax(dim=-1))
+        #full_tok = self.tokenizer.batch_decode(logits.argmax(dim=-1))
+        #true_tok = self.tokenizer.batch_decode(batch['input_ids'][:, 0])
+        #full_true_tok = self.tokenizer.batch_decode(batch['input_ids'])
         #print(tok, true_tok, logits[:, 0].argmax(dim=-1), batch['input_ids'][:, 0])
         #print(full_tok[0], '\n####\n', full_true_tok[0])
         logits_binary = logits[:, 0, [2053, 2748]]
-        pred_label = torch.argmax(logits_binary, dim=-1).float()#.reshape(self.test_count, batch_size).mean(dim=0)
+        pred_label = torch.argmax(logits_binary, dim=-1).float().reshape(self.test_count, batch_size).mean(dim=0)
         self.test_accuracy.update(pred_label, labels_binary)
-        #print(self.test_accuracy.compute())
+        print(self.test_accuracy.compute())
 
     def on_test_epoch_start(self):
         self.test_accuracy.reset()

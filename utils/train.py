@@ -44,6 +44,7 @@ def main(cfg: Config):
 
     with open(osp.join(exp_folder, 'config.yaml'), 'w') as fout:
         print(yaml_cfg, file=fout)
+    #exit(0)
 
     if torch.cuda.device_count() > 1:
         strategy = DDPStrategy(

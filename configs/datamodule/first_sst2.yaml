@@ -1,0 +1,25 @@
+_target_: "diffusion.dataset.GlueDataModule"
+
+train_dataset_cfg:
+  _target_: "diffusion.dataset.FirstSST2Dataset"
+  max_length: 71
+  train: True
+
+valid_dataset_cfg:
+  _target_: "diffusion.dataset.FirstSST2Dataset"
+  max_length: 71
+  train: False
+
+train_dataloader_cfg:
+  _target_: "torch.utils.data.DataLoader"
+  batch_size: 512
+  num_workers: 32
+  drop_last: True
+  shuffle: True
+
+valid_dataloader_cfg:
+  _target_: "torch.utils.data.DataLoader"
+  batch_size: 512 #${train_dataloader_cfg.batch_size}
+  num_workers: 32 #${train_dataloader_cfg.num_workers}
+  drop_last: False
+  shuffle: False

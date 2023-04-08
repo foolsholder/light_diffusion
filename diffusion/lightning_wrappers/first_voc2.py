@@ -11,11 +11,7 @@ EPOCH_OUTPUT = List[STEP_OUTPUT]
 
 from .base import ZeroVoc2
 
-class CEMaskedWrapper(ZeroVoc2):
-    def __init__(self, test_count: int = 1, *args, **kwargs) -> None:
-        super().__init__(test_count=test_count, *args, **kwargs)
-        self.test_count = 1
-
+class FirstVoc2(ZeroVoc2):
     def step_logic(self, batch: Dict[str, Tensor]) -> STEP_OUTPUT:
         outputs = self.forward(batch)
         input_ids = batch['input_ids']
@@ -43,8 +39,8 @@ class CEMaskedWrapper(ZeroVoc2):
 
         return {
             'batch_size': batch_size,
-            'ce30k_loss': ce_loss,
             'bce_loss': bce_loss,
+            'ce30k_loss': ce_loss,
             'x0_loss': x0_loss,
-            'loss': bce_loss
+            'loss': x0_loss + self.ce_coef * bce_loss
         }

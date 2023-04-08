@@ -1,4 +1,4 @@
-_target_: "diffusion.FirstVoc2"
+_target_: "diffusion.ZeroVoc2"
 defaults:
   - optim_partial/adam
   - sched_partial/linear_warmup
@@ -6,4 +6,4 @@ defaults:
   - sde_cfg/beta_linear
 
 ce_coef: 0.1
-label_mask_pos: 1
+label_mask_pos: 0
