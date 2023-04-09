@@ -20,7 +20,7 @@ from diffusion import Config
 import diffusion
 
 
-def main(exp_folder: str, ckpt_num: int):
+def main(exp_folder: str, ckpt_num: int, use_ema: bool = False):
     seed_everything(1337, workers=True)
 
     cfg = OmegaConf.load(osp.join(exp_folder, 'config.yaml'))
@@ -39,6 +39,14 @@ def main(exp_folder: str, ckpt_num: int):
         ckpt['state_dict'],
         strict=True
     )
+    prefix_folder = 'ema_' if use_ema else ''
+    if use_ema:
+        from torch_ema import ExponentialMovingAverage
+        ema = ExponentialMovingAverage(wrapped_model.parameters(), 0)
+        ema.load_state_dict(
+            ckpt['callbacks']['EMACallback']
+        )
+        ema.copy_to(wrapped_model.parameters())
     #wrapped_model.score_estimator.load_state_dict(
     #    torch.load('score_estimator.pth', map_location='cpu')
     #)
@@ -53,13 +61,14 @@ def main(exp_folder: str, ckpt_num: int):
     )
 
     cfg.datamodule.valid_dataloader_cfg.batch_size = 2
+    cfg.datamodule.valid_dataloader_cfg.num_workers = 4
     trainer.test(
         wrapped_model,
         datamodule=instantiate(cfg.datamodule, _recursive_=False)
     )
     wrapped_model: diffusion.lightning_wrappers.ZeroVoc2
 
-    save_folder = osp.join('accuracy', osp.basename(exp_folder))
+    save_folder = osp.join('accuracy', prefix_folder + osp.basename(exp_folder))
     if not osp.exists(save_folder):
         os.makedirs(save_folder)
     acc = wrapped_model.test_accuracy.compute()
@@ -71,9 +80,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('exp_folder', type=str)
     parser.add_argument('ckpt_num', type=int)
+    parser.add_argument('--ema', default=False, action=argparse.BooleanOptionalAction)
     return parser.parse_args()
 
 if __name__ == '__main__':
     os.environ['EXP_PATH'] = osp.abspath('experiments/')
     args = parse_args()
-    main(args.exp_folder, args.ckpt_num)
+    main(args.exp_folder, args.ckpt_num, args.ema)

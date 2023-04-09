@@ -259,7 +259,7 @@ class ZeroVoc2(L.LightningModule):
         clean_x = self.enc_normalizer.normalize(encodings)
         attn_mask = batch['attention_mask']
         ddrm_mask = torch.ones_like(attn_mask)
-        ddrm_mask[:, 0] = 0
+        ddrm_mask[:, self.label_mask_pos] = 0
         ddrm_mask = ddrm_mask.bool()
 
         clean_x = torch.tile(clean_x, (self.test_count, 1, 1))
@@ -288,7 +288,7 @@ class ZeroVoc2(L.LightningModule):
         #full_true_tok = self.tokenizer.batch_decode(batch['input_ids'])
         #print(tok, true_tok, logits[:, 0].argmax(dim=-1), batch['input_ids'][:, 0])
         #print(full_tok[0], '\n####\n', full_true_tok[0])
-        logits_binary = logits[:, 0, [2053, 2748]]
+        logits_binary = logits[:, self.label_mask_pos, [2053, 2748]]
         pred_label = torch.argmax(logits_binary, dim=-1).float().reshape(self.test_count, batch_size).mean(dim=0)
         self.test_accuracy.update(pred_label, labels_binary)
         print(self.test_accuracy.compute())
