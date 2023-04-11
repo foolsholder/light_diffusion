@@ -1,0 +1,1 @@
+python3 utils/check_half_time_first_pos_noise.py experiments/zero_voc2 5000 --ema --step_init 750

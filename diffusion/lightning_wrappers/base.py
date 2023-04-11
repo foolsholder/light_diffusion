@@ -249,9 +249,32 @@ class ZeroVoc2(L.LightningModule):
         x_t_forward = self.sde.marginal_forward(clean_x, t)['x_t']
 
         x_t = torch.where(ddrm_mask[:, :, None], gamma * x_t_forward + (1 - gamma) * x_t, x_t)
-        return self.solver.step(self.score_estimator, x_t, t, attn_mask)['x_t']
+        return self.solver.step(self.score_estimator, x_t, t, attn_mask)
 
-    def ddrm_glue_fst_pos(self, batch: Dict[str, Tensor]):
+    def ddrm_cycle(
+        self, 
+        clean_x: Tensor, ddrm_mask: Tensor, attn_mask: Tensor,
+        x_t: Tensor, timesteps: Tensor, gamma: float = 1
+    ) -> Tensor:
+        batch_size = len(clean_x)
+        from tqdm.auto import trange
+        #bar = trange
+        bar = range
+        for idx in bar(len(timesteps)):
+            time_tensor = torch.ones(batch_size, device=clean_x.device) * timesteps[idx]
+            step_outs = self.ddrm_step(x_t, time_tensor, clean_x, ddrm_mask, attn_mask, gamma)
+            x_t = step_outs['x_t']
+            x_mean = step_outs['x_mean']
+        return x_mean
+
+    def tile_input(self, input_dict: Dict[str, Tensor]) -> Dict[str, Tensor]:
+        res: Dict[str, Tensor] = dict()
+        for k, v in input_dict.items():
+            tile_param = (self.test_count,) + (1,) * (len(v.shape) - 1)
+            res[k] = torch.tile(v, tile_param)
+        return res
+
+    def ddrm_glue_label_pos(self, batch: Dict[str, Tensor]):
         encodings = self.encoder.bert(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])[0]
         labels_binary = batch['labels'].view(-1)
 
@@ -262,21 +285,22 @@ class ZeroVoc2(L.LightningModule):
         ddrm_mask[:, self.label_mask_pos] = 0
         ddrm_mask = ddrm_mask.bool()
 
-        clean_x = torch.tile(clean_x, (self.test_count, 1, 1))
-        attn_mask = torch.tile(attn_mask, (self.test_count, 1))
-        ddrm_mask = torch.tile(ddrm_mask, (self.test_count, 1))
+        tiled_ddrm_input = self.tile_input({
+            'clean_x': clean_x,
+            'attn_mask': attn_mask,
+            'ddrm_mask': ddrm_mask
+        })
+        clean_x = tiled_ddrm_input.pop('clean_x')
+        attn_mask = tiled_ddrm_input.pop('attn_mask')
+        ddrm_mask = tiled_ddrm_input.pop('ddrm_mask')
 
         aug_batch_size = len(clean_x)
 
         x_t = self.sde.prior_sampling(clean_x.shape).to(clean_x.device)
         timesteps = torch.linspace(self.sde.T, self.sde.T / self.sde.N, self.sde.N, device=x_t.device)
 
-        from tqdm.auto import trange
-        #bar = trange
-        bar = range
-        for idx in bar(self.sde.N):
-            time_tensor = torch.ones(aug_batch_size, device=clean_x.device) * timesteps[idx]
-            x_t = self.ddrm_step(x_t, time_tensor, clean_x, ddrm_mask, attn_mask)
+        x_t = self.ddrm_cycle(clean_x, ddrm_mask, attn_mask, x_t, timesteps, gamma=1)
+
         #print(batch['input_ids'][:4, 0])
         pred_encodings = self.enc_normalizer.denormalize(x_t)
         logits = self.encoder.forward(pred_encodings=pred_encodings).logits
@@ -303,7 +327,7 @@ class ZeroVoc2(L.LightningModule):
         self.test_accuracy.reset()
 
     def test_step(self, batch: Dict[str, Tensor], *args: Any, **kwargs: Any) -> Optional[STEP_OUTPUT]:
-        self.ddrm_glue_fst_pos(batch)
+        self.ddrm_glue_label_pos(batch)
 
     def on_test_epoch_end(self) -> None:
         self.log_dict({'accuracy': self.test_accuracy.compute()}, is_train=False)

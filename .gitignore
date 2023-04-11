@@ -12,3 +12,4 @@ experiments
 old_code
 slurm-*.out
 accuracy
+stats
