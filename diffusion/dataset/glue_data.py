@@ -82,3 +82,64 @@ class FirstSST2Dataset(ZeroSST2Dataset):
         # ['CLS']
         # dct['input_ids'][0] = 2053 * (1 - label) + label * 2748
         return dct
+
+
+class SST2GlueDataset(Dataset):
+    def __init__(self, max_length: int = 72, train: bool = True) -> None:
+        super().__init__()
+        self.tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
+        self.max_length = max_length
+        self.dataset = load_dataset('glue', 'sst2', split='train' if train else 'validation')
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(
+            self,
+            index: int
+    ):
+        obj = self.dataset[index]
+        sent: str = obj['sentence']
+
+        label = obj['label']
+
+        dct = self.tokenizer(
+           sent,
+           truncation=True,
+           padding="max_length",
+           max_length=self.max_length
+        )
+        dct['labels'] = [label]
+        dct = {k: torch.LongTensor(v) for k, v in dct.items()}
+        return dct
+    
+    
+class QQPGlueDataset(Dataset):
+    def __init__(self, max_length: int = 72, train: bool = True) -> None:
+        super().__init__()
+        self.tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
+        self.max_length = max_length
+        self.dataset = load_dataset('glue', 'qqp', split='train' if train else 'validation')
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(
+            self,
+            index: int
+    ):
+        obj = self.dataset[index]
+        sent: str = obj['question1']
+        sent2: str = obj['question2']
+
+        label = obj['label']
+
+        dct = self.tokenizer(
+           sent, sent2,
+           truncation=True,
+           padding="max_length",
+           max_length=self.max_length
+        )
+        dct['labels'] = [label]
+        dct = {k: torch.LongTensor(v) for k, v in dct.items()}
+        return dct

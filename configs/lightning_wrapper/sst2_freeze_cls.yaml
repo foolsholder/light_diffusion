@@ -1,0 +1,3 @@
+_target_: "diffusion.SST2FreezedClassification"
+defaults:
+  - optim_partial/adamw
