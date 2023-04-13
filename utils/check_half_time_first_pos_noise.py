@@ -26,9 +26,11 @@ import diffusion
 def half_time_restore_label(
     wrapper: diffusion.FirstVoc2, val_loader: DataLoader,
     binary_label: int, device: str = 'cpu', step_init: int = 500
-) -> float:
+) -> Union[float, float]:
     accuracy = BinaryAccuracy()
     accuracy.to(device)
+    true_accuracy = BinaryAccuracy()
+    true_accuracy.to(device)
     wrapper.to(device)
 
     label_30k = binary_label * 2748 + (1 - binary_label) * 2053
@@ -37,6 +39,7 @@ def half_time_restore_label(
         batch = dict_to_device(batch, device)
 
         input_ids = batch['input_ids']
+        batch_true_labels = batch['labels'].view(-1)
         batch_size = len(input_ids)
 
         input_ids[:, wrapper.label_mask_pos] = label_30k
@@ -73,8 +76,9 @@ def half_time_restore_label(
         logits_binary = logits[:, wrapper.label_mask_pos, [2053, 2748]]
         pred_label = torch.argmax(logits_binary, dim=-1).float().reshape(wrapper.test_count, batch_size).mean(dim=0)
         accuracy.update(pred_label, torch.ones_like(pred_label).long() * binary_label)
-        print(accuracy.compute(), binary_label, step_init,  'noise')
-    return accuracy.compute()
+        true_accuracy.update(pred_label.view(-1), batch_true_labels)
+        print(f'synthetic={accuracy.compute()}, true_accuracy={true_accuracy.compute()}', binary_label, step_init)
+    return accuracy.compute(), true_accuracy.compute()
 
 
 
@@ -126,10 +130,11 @@ def main(exp_folder: str, ckpt_num: int, use_ema: bool = False, step_init: int =
         os.makedirs(save_folder)
 
     for binary_label in [0, 1]:
-        acc = half_time_restore_label(wrapped_model, val_loader, binary_label, device, step_init)
+        s_acc, t_acc = half_time_restore_label(wrapped_model, val_loader, binary_label, device, step_init)
 
         with open(osp.join(save_folder, f'noise_{binary_label}_{step_init}_step_{ckpt_num}.txt'), 'w') as fout:
-            print(acc, file=fout)
+            print(f'synt:{s_acc}', file=fout)
+            print(f'true:{t_acc}', file=fout)
 
 import argparse
 def parse_args():
