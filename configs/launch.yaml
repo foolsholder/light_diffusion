@@ -1,8 +1,8 @@
 defaults:
-  - lightning_wrapper/fzero_voc2
+  - lightning_wrapper/sst2_freeze_cls
   - datamodule/zero_sst2
 
-max_steps: 200_000
+max_steps: 20_000
 seed: 1337
 every_n_train_steps: 5_000
 grad_clip_norm: 1.0

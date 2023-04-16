@@ -67,16 +67,16 @@ class FinetunedZeroVoc2(ZeroVoc2):
         # print(pred_x_0.shape, clean_x_0.shape, flush=True)
 
         x0_loss = torch.mean((pred_x_0[:, 0, :] - clean_x_0[:, 0, :])**2)
-
-        pred_encodings = self.enc_normalizer.denormalize(pred_x_0)
-        logits = self.encoder.forward(pred_encodings=pred_encodings).logits
+        #pred_x_0 = clean_x_0
+        pred_encodings = self.enc_normalizer.denormalize(pred_x_0)[:, 0]
+        logits = self.encoder.cls(pred_encodings)
 
         # print(logits.shape, flush=True)
 
-        logits = logits[:, 0]
         labels_binary = batch['labels'].view(-1)
 
         bce_loss = torch.nn.functional.cross_entropy(logits.view(-1), labels_binary.view(-1).float())
+        #print(bce_loss)
 
         batch_size = len(logits)
 
@@ -87,8 +87,8 @@ class FinetunedZeroVoc2(ZeroVoc2):
             'loss': x0_loss + self.ce_coef * bce_loss
         }
 
-    def get_label_pred_label(self, logits):
-        logits_binary = logits[:, self.label_mask_pos]
-        probs_binary = F.sigmoid(logits_binary)
+    def get_label_pred_label(self, pred_encodings):
+        logits = self.encoder.cls(pred_encodings[:, self.label_mask_pos])
+        probs_binary = F.sigmoid(logits)
         pred_label = (probs_binary >= 0.5).float().reshape(self.test_count, -1).mean(dim=0)
         return pred_label

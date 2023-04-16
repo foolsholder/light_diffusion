@@ -301,9 +301,8 @@ class ZeroVoc2(L.LightningModule):
 
         x_t = self.ddrm_cycle(clean_x, ddrm_mask, attn_mask, x_t, timesteps, gamma=1)
 
-        #print(batch['input_ids'][:4, 0])
         pred_encodings = self.enc_normalizer.denormalize(x_t)
-        logits = self.encoder.forward(pred_encodings=pred_encodings).logits
+        #print(batch['input_ids'][:4, 0])
         #logits = self.encoder.cls(encodings)
         #logits = self.encoder(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']).logits
         #tok = self.tokenizer.batch_decode(logits[:, 0].argmax(dim=-1))
@@ -312,12 +311,13 @@ class ZeroVoc2(L.LightningModule):
         #full_true_tok = self.tokenizer.batch_decode(batch['input_ids'])
         #print(tok, true_tok, logits[:, 0].argmax(dim=-1), batch['input_ids'][:, 0])
         #print(full_tok[0], '\n####\n', full_true_tok[0])
-        pred_label = self.get_label_pred_label(logits)
+        pred_label = self.get_label_pred_label(pred_encodings)
         self.test_accuracy.update(pred_label, labels_binary)
         print(self.test_accuracy.compute())
 
-    def get_label_pred_label(self, logits):
-        logits_binary = logits[:, self.label_mask_pos, [2053, 2748]]
+    def get_label_pred_label(self, pred_encodings):
+        logits = self.encoder.cls(pred_encodings[:, self.label_mask_pos])
+        logits_binary = logits[:, [2053, 2748]]
         pred_label = torch.argmax(logits_binary, dim=-1).float().reshape(self.test_count, -1).mean(dim=0)
         return pred_label
 

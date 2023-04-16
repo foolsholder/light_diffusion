@@ -26,6 +26,7 @@ from diffusion.helper import LinearWarmupLR
 from transformers.models.bert.modeling_bert import (
     BertLMHeadModel as BB, BertLMPredictionHead, BertModel
 )
+from diffusion.models.modeling_bert import BertModel as TBM
 
 from torchmetrics.classification import BinaryAccuracy
 
@@ -41,7 +42,10 @@ class SST2FreezedClassification(GLUEFreezedClassification):
         bert_cfg_name = 'bert-base-uncased'
         bert_config = BertConfig(bert_cfg_name)
         bert_config.vocab_size = 1
+        self.bert = TBM.from_pretrained(bert_cfg_name, label_mask_pos=0)
         self.cls = BertLMPredictionHead(bert_config)
+        for param in self.bert.parameters():
+            param.requires_grad = False
 
     def forward(self, batch: Dict[str, Tensor]) -> Dict[str, Tensor]:
         outs = self.bert.forward(**batch)
