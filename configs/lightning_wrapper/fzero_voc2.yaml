@@ -5,7 +5,7 @@ defaults:
   - enc_normalizer_cfg/wiki_pret
   - sde_cfg/beta_linear
 
-cls_head_ckpt_path: experiments/sst2_freezed_head_for_ddpm0/100.ckpt
+cls_head_ckpt_path: experiments/sst2_freezed_head/epoch=21.ckpt
 
 ce_coef: 0.1
 label_mask_pos: 0

@@ -40,7 +40,7 @@ class ZeroVoc2(L.LightningModule):
     ) -> None:
         super().__init__()
         self.test_count = test_count
-        self.enc_normalizer = instantiate(enc_normalizer_cfg)
+        self.enc_normalizer: EncNormalizer = instantiate(enc_normalizer_cfg)
 
         bert_cfg_name = 'bert-base-uncased'
         bert_config = BertConfig(bert_cfg_name)

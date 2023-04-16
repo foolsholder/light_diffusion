@@ -54,12 +54,22 @@ class FinetunedZeroVoc2(ZeroVoc2):
         self.encoder.cls.load_state_dict(
             st_dict
         )
+        self.encoder.load_state_dict(ckpt['state_dict'])
         for param in self.encoder.parameters():
             param.requires_grad = False
 
     def step_logic(self, batch: Dict[str, Tensor]) -> STEP_OUTPUT:
-        outputs = self.forward(batch)
         input_ids = batch['input_ids']
+        att_mask = batch['attention_mask']
+        
+        #encodings = self.encoder.bert(
+        #    input_ids=input_ids, 
+        #    attention_mask=att_mask, 
+        #    token_type_ids=batch['token_type_ids']
+        #).last_hidden_state
+        #clean_x = self.enc_normalizer.normalize(encodings)
+        
+        outputs = self.forward(batch)
 
         pred_x_0 = outputs['x_0']
         clean_x_0 = outputs['clean_x']
@@ -67,16 +77,23 @@ class FinetunedZeroVoc2(ZeroVoc2):
         # print(pred_x_0.shape, clean_x_0.shape, flush=True)
 
         x0_loss = torch.mean((pred_x_0[:, 0, :] - clean_x_0[:, 0, :])**2)
-        #pred_x_0 = clean_x_0
+        #pred_x_0 = clean_x
         pred_encodings = self.enc_normalizer.denormalize(pred_x_0)[:, 0]
-        logits = self.encoder.cls(pred_encodings)
+        #identity_enc = self.enc_normalizer.denormalize(
+        #        self.enc_normalizer.normalize(encodings)
+        #    )
+        #mse = torch.mean((identity_enc - encodings)**2)
+        logits = self.encoder.cls(
+            #identity_enc[:, 0]
+            pred_encodings
+        )
 
         # print(logits.shape, flush=True)
 
         labels_binary = batch['labels'].view(-1)
 
         bce_loss = torch.nn.functional.cross_entropy(logits.view(-1), labels_binary.view(-1).float())
-        #print(bce_loss)
+        #print(bce_loss, mse)
 
         batch_size = len(logits)
 
