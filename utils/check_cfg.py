@@ -32,7 +32,8 @@ def main(cfg: Config):
     batch = next(iter_loader)
     for _ in range(2):
         cpy = copy(batch)
-        obj.training_step(cpy)
+        outs = obj.training_step(cpy)
+        print(outs['bce_loss'])
 
 if __name__ == '__main__':
     main()

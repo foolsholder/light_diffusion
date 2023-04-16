@@ -1,0 +1,11 @@
+_target_: "diffusion.FinetunedZeroVoc2FPHead"
+defaults:
+  - optim_partial/adam
+  - sched_partial/linear_warmup
+  - enc_normalizer_cfg/wiki_pret
+  - sde_cfg/beta_linear
+
+cls_head_ckpt_path: experiments/sst2_ft_head_pret/epoch=20.ckpt
+
+ce_coef: 0.1
+label_mask_pos: 0

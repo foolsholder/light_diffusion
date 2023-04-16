@@ -24,7 +24,7 @@ from diffusion.utils import calc_model_grads_norm, calc_model_weights_norm, filt
 from diffusion.models import BertLMHeadModel as TBB, ScoreEstimator
 from diffusion.helper import LinearWarmupLR
 from diffusion.dataset import EncNormalizer
-from transformers.models.bert.modeling_bert import BertLMHeadModel as BB, BertLMPredictionHead
+from transformers.models.bert.modeling_bert import BertLMHeadModel as BB, BertLMPredictionHead, BertOnlyMLMHead
 
 from .base import ZeroVoc2
 
@@ -37,7 +37,7 @@ def filter_dict(st_dict: OrderedDict, key: str):
     return res
 
 
-class FinetunedZeroVoc2(ZeroVoc2):
+class FinetunedZeroVoc2FPHead(ZeroVoc2):
     def __init__(
         self,
         cls_head_ckpt_path: str,
@@ -47,8 +47,8 @@ class FinetunedZeroVoc2(ZeroVoc2):
         self.label_mask_pos
         bert_config_name = 'bert-base-uncased'
         bert_config = BertConfig(bert_config_name)
-        bert_config.vocab_size = 1
-        self.encoder.cls = BertLMPredictionHead(bert_config)
+        bert_config.vocab_size = 2
+        self.encoder.cls = BertOnlyMLMHead(bert_config)
         ckpt = torch.load(cls_head_ckpt_path, map_location='cpu')
         st_dict = filter_dict(ckpt['state_dict'], 'cls.')
         self.encoder.cls.load_state_dict(
@@ -92,8 +92,8 @@ class FinetunedZeroVoc2(ZeroVoc2):
 
         labels_binary = batch['labels'].view(-1)
 
-        bce_loss = torch.nn.functional.binary_cross_entropy_with_logits(
-            logits.view(-1), labels_binary.view(-1).float()
+        bce_loss = torch.nn.functional.cross_entropy(
+            logits, labels_binary.view(-1).long()
         )
         #print(bce_loss, mse)
 
@@ -108,6 +108,6 @@ class FinetunedZeroVoc2(ZeroVoc2):
 
     def get_label_pred_label(self, pred_encodings):
         logits = self.encoder.cls(pred_encodings[:, self.label_mask_pos])
-        probs_binary = F.sigmoid(logits)
+        probs_binary = F.softmax(logits)[:, 1]
         pred_label = (probs_binary >= 0.5).float().reshape(self.test_count, -1).mean(dim=0)
         return pred_label
