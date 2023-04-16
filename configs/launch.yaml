@@ -1,6 +1,6 @@
 defaults:
-  - lightning_wrapper/qqp_freeze_cls
-  - datamodule/qqp_cls
+  - lightning_wrapper/fzero_voc2
+  - datamodule/zero_sst2
 
 max_steps: 200_000
 seed: 1337

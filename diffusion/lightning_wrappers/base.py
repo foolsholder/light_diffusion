@@ -179,7 +179,7 @@ class ZeroVoc2(L.LightningModule):
         labels_30k = input_ids[:, 0]
 
         ce_loss = torch.nn.functional.cross_entropy(logits, labels_30k)
-        bce_loss = torch.nn.functional.cross_entropy(logits[:, [2053, 2748]], labels_binary)
+        bce_loss = torch.nn.functional.cross_entropy(logits[:, [2053, 2748]], labels_binary.float())
 
         batch_size = len(logits)
 
@@ -312,10 +312,14 @@ class ZeroVoc2(L.LightningModule):
         #full_true_tok = self.tokenizer.batch_decode(batch['input_ids'])
         #print(tok, true_tok, logits[:, 0].argmax(dim=-1), batch['input_ids'][:, 0])
         #print(full_tok[0], '\n####\n', full_true_tok[0])
-        logits_binary = logits[:, self.label_mask_pos, [2053, 2748]]
-        pred_label = torch.argmax(logits_binary, dim=-1).float().reshape(self.test_count, batch_size).mean(dim=0)
+        pred_label = self.get_label_pred_label(logits)
         self.test_accuracy.update(pred_label, labels_binary)
         print(self.test_accuracy.compute())
+
+    def get_label_pred_label(self, logits):
+        logits_binary = logits[:, self.label_mask_pos, [2053, 2748]]
+        pred_label = torch.argmax(logits_binary, dim=-1).float().reshape(self.test_count, -1).mean(dim=0)
+        return pred_label
 
     def on_test_epoch_start(self):
         self.test_accuracy.reset()

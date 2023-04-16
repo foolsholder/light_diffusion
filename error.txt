@@ -1,0 +1,55 @@
+lightning_wrapper:
+  optim_partial:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 5.0e-05
+    weight_decay: 0
+  sched_partial:
+    _target_: diffusion.LinearWarmupLR
+    _partial_: true
+    warmup_steps: 5000
+    warmup_start_lr: 0
+  enc_normalizer_cfg:
+    _target_: diffusion.EncNormalizer
+    enc_mean_path: wiki_pret_old/encodings-bert_base-wiki-mean.pt
+    enc_std_path: wiki_pret_old/encodings-bert_base-wiki-std.pt
+  sde_cfg:
+    _target_: diffusion.dynamics.BetaLinear
+    'N': 1000
+    beta_min: 0.1
+    beta_max: 20
+    prediction: x_0_a_x_t
+    ode_sampling: false
+  _target_: diffusion.FinetunedZeroVoc2
+  cls_head_ckpt_path: experiments/sst2_freezed_head_for_ddpm0/100.ckpt
+  ce_coef: 0.1
+  label_mask_pos: 0
+datamodule:
+  _target_: diffusion.dataset.GlueDataModule
+  train_dataset_cfg:
+    _target_: diffusion.dataset.ZeroSST2Dataset
+    max_length: 72
+    train: true
+  valid_dataset_cfg:
+    _target_: diffusion.dataset.ZeroSST2Dataset
+    max_length: 72
+    train: false
+  train_dataloader_cfg:
+    _target_: torch.utils.data.DataLoader
+    batch_size: 512
+    num_workers: 32
+    drop_last: true
+    shuffle: true
+  valid_dataloader_cfg:
+    _target_: torch.utils.data.DataLoader
+    batch_size: 512
+    num_workers: 32
+    drop_last: false
+    shuffle: false
+max_steps: 200000
+seed: 1337
+every_n_train_steps: 5000
+grad_clip_norm: 1.0
+project: light_diffusion
+exp_name: None
+
