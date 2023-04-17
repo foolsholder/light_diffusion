@@ -29,7 +29,7 @@ def main(exp_folder: str, ckpt_num: int, use_ema: bool = False):
     print(osp.abspath('.'))
 
     wrapped_model = instantiate(cfg.lightning_wrapper, _recursive_=False)
-    ckpt_path = osp.join(exp_folder, f'step={ckpt_num}.ckpt')
+    ckpt_path = osp.join(exp_folder, f'epoch={ckpt_num}.ckpt')
     print(f'ckpt_path={ckpt_path}')
     ckpt = torch.load(
         ckpt_path,
@@ -72,7 +72,7 @@ def main(exp_folder: str, ckpt_num: int, use_ema: bool = False):
     if not osp.exists(save_folder):
         os.makedirs(save_folder)
     acc = wrapped_model.test_accuracy.compute()
-    with open(osp.join(save_folder, f'step_{ckpt_num}.txt'), 'w') as fout:
+    with open(osp.join(save_folder, f'epoch_{ckpt_num}.txt'), 'w') as fout:
         print(acc, file=fout)
 
 import argparse

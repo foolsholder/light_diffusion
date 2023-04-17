@@ -1,13 +1,1 @@
-python3 utils/validate.py experiments/first_voc2 5000 --ema
-python3 utils/validate.py experiments/first_voc2 10000 --ema
-python3 utils/validate.py experiments/first_voc2 15000 --ema
-python3 utils/validate.py experiments/first_voc2 20000 --ema
-python3 utils/validate.py experiments/first_voc2 25000 --ema
-python3 utils/validate.py experiments/first_voc2 30000 --ema
-python3 utils/validate.py experiments/first_voc2 35000 --ema
-python3 utils/validate.py experiments/first_voc2 40000 --ema
-python3 utils/validate.py experiments/first_voc2 45000 --ema
-python3 utils/validate.py experiments/first_voc2 50000 --ema
-python3 utils/validate.py experiments/first_voc2 55000 --ema
-python3 utils/validate.py experiments/first_voc2 60000 --ema
-python3 utils/validate.py experiments/first_voc2 65000 --ema
+python3 utils/validate.py experiments/ddpm0_finetuned_pretrained_head 38 --ema

@@ -1,5 +1,5 @@
 defaults:
-  - lightning_wrapper/fzero_voc2
+  - lightning_wrapper/fzero_voc2_pret
   - datamodule/zero_sst2
 
 max_steps: 200_000
