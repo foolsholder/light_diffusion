@@ -8,7 +8,8 @@ from hydra.utils import instantiate
 
 from transformers import BertTokenizerFast, BertConfig
 from torchmetrics import Accuracy
-
+import os
+import os.path as osp
 from collections import Counter
 
 import lightning as L
@@ -49,6 +50,7 @@ class FinetunedZeroVoc2FPHead(ZeroVoc2):
         bert_config = BertConfig(bert_config_name)
         bert_config.vocab_size = 2
         self.encoder.cls = BertOnlyMLMHead(bert_config)
+        cls_head_ckpt_path = osp.join(os.environ['BASE_PATH'], cls_head_ckpt_path)
         ckpt = torch.load(cls_head_ckpt_path, map_location='cpu')
         st_dict = filter_dict(ckpt['state_dict'], 'cls.')
         self.encoder.cls.load_state_dict(

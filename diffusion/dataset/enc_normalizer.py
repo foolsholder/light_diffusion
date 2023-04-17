@@ -1,11 +1,15 @@
 import torch
 
 from torch import nn
+import os
+import os.path as osp
 
 
 class EncNormalizer(nn.Module):
     def __init__(self, enc_mean_path: str, enc_std_path: str):
         super().__init__()
+        enc_mean_path = osp.join(os.environ['BASE_PATH'], enc_mean_path)
+        enc_std_path = osp.join(os.environ['BASE_PATH'], enc_std_path)
         self.enc_mean = nn.Parameter(
             torch.load(enc_mean_path, map_location='cpu')[None, None, :],
             requires_grad=False

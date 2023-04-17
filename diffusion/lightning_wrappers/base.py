@@ -5,7 +5,8 @@ from torch.nn import functional as F
 
 from typing import Any, Optional, Dict, List, Union, Callable, Any
 from hydra.utils import instantiate
-
+import os
+import os.path as osp
 from transformers import BertTokenizerFast, BertConfig
 from torchmetrics import Accuracy
 
@@ -61,7 +62,9 @@ class ZeroVoc2(L.LightningModule):
         ema = ExponentialMovingAverage(
             parameters=self.score_estimator.parameters(), decay=0
         )
-        self.load_and_copy_ema(ema, 'wiki_pret_old/slava_ckpt.pth')
+        pret_path = 'wiki_pret_old/slava_ckpt.pth'
+        pret_path = osp.join(os.environ['BASE_PATH'], pret_path)
+        self.load_and_copy_ema(ema, pret_path)
 
         self.ema: Optional[ExponentialMovingAverage] = None
 
