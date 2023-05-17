@@ -11,6 +11,7 @@ from transformers import BertTokenizerFast, T5TokenizerFast
 from datasets import load_dataset
 from json import dump, load
 
+
 class WikiDataset(Dataset):
     def __init__(
             self,
@@ -26,7 +27,7 @@ class WikiDataset(Dataset):
         self.max_length = max_length
 
         if train:
-            self.dataset = load_dataset("Graphcore/wikipedia-bert-128")
+            self.dataset = load_dataset("Graphcore/wikipedia-bert-128", split='train')
         else:
             self.dataset = []
 
@@ -72,6 +73,6 @@ class WikiDataset(Dataset):
                 max_length=self.max_length
             )
             for k, v in tokenized.items():
-                result[prefix + k] = v
+                result[prefix + k] = torch.LongTensor(v)
 
         return result
