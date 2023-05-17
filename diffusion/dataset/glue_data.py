@@ -112,8 +112,8 @@ class SST2GlueDataset(Dataset):
         dct['labels'] = [label]
         dct = {k: torch.LongTensor(v) for k, v in dct.items()}
         return dct
-    
-    
+
+
 class QQPGlueDataset(Dataset):
     def __init__(self, max_length: int = 72, train: bool = True) -> None:
         super().__init__()

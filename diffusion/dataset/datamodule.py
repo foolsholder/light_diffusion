@@ -4,10 +4,11 @@ import lightning as L
 
 from torch.utils.data import DataLoader
 
+from typing import List
 from diffusion.configs import DatasetCfg, DataLoaderCfg
 
 
-class GlueDataModule(L.LightningDataModule):
+class SimpleDataModule(L.LightningDataModule):
     def __init__(
         self,
         train_dataset_cfg: DatasetCfg,
@@ -29,7 +30,9 @@ class GlueDataModule(L.LightningDataModule):
     def train_dataloader(self):
         return instantiate(self.train_dataloader_cfg, dataset=self.train_dataset)
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> List | DataLoader:
+        if len(self.valid_dataset) == 0:
+            return []
         return instantiate(self.valid_dataloader_cfg, dataset=self.valid_dataset)
 
     def test_dataloader(self):

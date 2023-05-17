@@ -1,6 +1,6 @@
 import torch
 
-from torch import nn
+from torch import nn, Tensor, FloatTensor
 import os
 import os.path as osp
 
@@ -22,10 +22,10 @@ class EncNormalizer(nn.Module):
     def forward(self, *args, **kwargs):
         return nn.Identity()(*args, **kwargs)
 
-    def normalize(self, encoding):
+    def normalize(self, encoding: FloatTensor) -> FloatTensor:
         #print(encoding.shape, self.enc_mean.shape, flush=True)
         #print(torch.sqrt(torch.sum(self.enc_mean**2)), flush=True)
         return (encoding - self.enc_mean) / self.enc_std
 
-    def denormalize(self, pred_x_0):
+    def denormalize(self, pred_x_0: FloatTensor) -> FloatTensor:
         return pred_x_0 * self.enc_std + self.enc_mean

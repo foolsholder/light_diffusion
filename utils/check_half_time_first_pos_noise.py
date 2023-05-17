@@ -114,7 +114,7 @@ def main(exp_folder: str, ckpt_num: int, use_ema: bool = False, step_init: int =
     cfg.datamodule.valid_dataloader_cfg.batch_size = 2
     cfg.datamodule.valid_dataloader_cfg.num_workers = 4
 
-    datamodule: diffusion.GlueDataModule = instantiate(cfg.datamodule, _recursive_=False)
+    datamodule: diffusion.SimpleDataModule = instantiate(cfg.datamodule, _recursive_=False)
     datamodule.setup("just_stage")
     val_loader = datamodule.val_dataloader()
 

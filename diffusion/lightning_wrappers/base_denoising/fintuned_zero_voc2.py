@@ -21,7 +21,7 @@ EPOCH_OUTPUT = List[STEP_OUTPUT]
 
 from diffusion.dynamics import SDE, RSDE, EulerSolver
 from diffusion.utils import calc_model_grads_norm, calc_model_weights_norm, filter_losses
-from diffusion.models import BertLMHeadModel as TBB, ScoreEstimator
+from diffusion.models.base_denoising import BertLMHeadModel as TBB, ScoreEstimator
 from diffusion.helper import LinearWarmupLR
 from diffusion.dataset import EncNormalizer
 from transformers.models.bert.modeling_bert import BertLMHeadModel as BB, BertLMPredictionHead

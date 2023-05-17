@@ -24,7 +24,7 @@ def main(cfg: Config):
     #print(type(obj), obj.label_mask_pos)
     cfg.datamodule.train_dataloader_cfg.num_workers = 1
     cfg.datamodule.valid_dataloader_cfg.num_workers = 1
-    data: diffusion.GlueDataModule = instantiate(cfg.datamodule, _recursive_=False)
+    data: diffusion.SimpleDataModule = instantiate(cfg.datamodule, _recursive_=False)
     print(data.train_dataset_cfg)
     data.setup("fit")
     loader = data.train_dataloader()
