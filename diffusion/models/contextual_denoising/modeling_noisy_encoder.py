@@ -16,8 +16,8 @@ from .typings import EncoderOutput
 
 
 class BertLMHeadModel(HuggingFaceBertLMHeadModel):
-    def __init__(self, enc_normalizer_cfg: EncNormalizerCfg, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, config, enc_normalizer_cfg: EncNormalizerCfg):
+        super().__init__(config)
         self.enc_normalizer: EncNormalizer = instantiate(enc_normalizer_cfg)
 
     def classify(

@@ -15,6 +15,7 @@ from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.strategies.ddp import DDPStrategy
 
 from diffusion import Config
+import diffusion
 from diffusion.callbacks import EMACallback
 
 from sys import exit
@@ -80,13 +81,20 @@ def main(cfg: Config):
         accelerator='auto',
         strategy=strategy
     )
-
-    trainer.fit(
-        wrapped_model,
-        datamodule=instantiate(cfg.datamodule, _recursive_=False)
-    )
-
+    datamodule: diffusion.SimpleDataModule = instantiate(cfg.datamodule, _recursive_=False)
+    datamodule.setup()
+    if len(datamodule.valid_dataset) > 0:
+        trainer.fit(
+            wrapped_model,
+            datamodule=datamodule
+        )
+    else:
+        trainer.fit(
+            wrapped_model,
+            train_dataloaders=datamodule.train_dataloader()
+        )
 
 if __name__ == '__main__':
+    os.environ['BASE_PATH'] = './'
     os.environ['EXP_PATH'] = osp.abspath('experiments/')
     main()

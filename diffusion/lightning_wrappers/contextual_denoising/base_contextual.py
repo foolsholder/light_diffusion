@@ -1,3 +1,4 @@
+from lightning.pytorch.utilities.types import STEP_OUTPUT
 from sympy import Float
 import torch
 
@@ -17,6 +18,7 @@ from collections import Counter
 import lightning as L
 
 from torch_ema import ExponentialMovingAverage
+from diffusion.configs.model_cfg import EncNormalizerCfg
 
 STEP_OUTPUT = Dict[str, Tensor]
 EPOCH_OUTPUT = List[STEP_OUTPUT]
@@ -36,8 +38,8 @@ from diffusion.dataset import EncNormalizer, enc_normalizer
 class ContextualDenoising(L.LightningModule):
     def __init__(
         self,
-        noisy_enc_normalizer_cfg: EncNormalizer,
-        clean_enc_normalizer_cfg: EncNormalizer,
+        noisy_enc_normalizer_cfg: EncNormalizerCfg,
+        clean_enc_normalizer_cfg: EncNormalizerCfg,
         sde_cfg: SDE,
         optim_partial: Callable[[(...,)], torch.optim.Optimizer],
         sched_partial: Callable[[(...,)], LinearWarmupLR],
@@ -49,7 +51,6 @@ class ContextualDenoising(L.LightningModule):
         t5_cfg_name = 't5-base'
 
         bert_config = BertConfig(bert_cfg_name)
-
         self.noisy_part_encoder: BertLMHeadModel = BertLMHeadModel.from_pretrained(
             bert_cfg_name, enc_normalizer_cfg=noisy_enc_normalizer_cfg
         ).eval()
@@ -100,7 +101,8 @@ class ContextualDenoising(L.LightningModule):
 
     def train(self, mode: bool = True):
         self.score_estimator.train(mode)
-        self.encoder.eval()
+        self.clean_part_encoder.eval()
+        self.noisy_part_encoder.eval()
         return self
 
     def se_forward(
@@ -119,9 +121,10 @@ class ContextualDenoising(L.LightningModule):
         return self.sde.calc_score(score_call, x_t, time_t, attention_mask)
 
     def forward(self, batch: Dict[str, Tensor]) -> Dict[str, Tensor]:
-        batch_size = len(batch['input_ids'])
+        batch_size = len(batch['clean_attention_mask'])
 
         encodings: Dict[str, EncoderOutput] = self.sample_encodings(batch)
+        cross_encodings: FloatTensor = encodings['clean_part'].normed
         normed_ddpm_target: FloatTensor = encodings['noisy_part'].normed
         # x0
 
@@ -136,6 +139,7 @@ class ContextualDenoising(L.LightningModule):
             x_t=x_t,
             time_t=time_t,
             attention_mask=attn_mask,
+            cross_encodings=cross_encodings,
             cross_attention_mask=cross_attn_mask
         )
         x_0 = scores['x_0']
@@ -227,6 +231,9 @@ class ContextualDenoising(L.LightningModule):
         suffix = 'train' if is_train else 'valid'
         losses = {key + f'/{suffix}': value for key, value in losses.items()}
         return super().log_dict(losses, *args, **kwargs)
+
+    def validation_step(self, *args: Any, **kwargs: Any) -> STEP_OUTPUT | None:
+        return super().validation_step(*args, **kwargs)
 
     def training_step(self, batch: Dict[str, Tensor], *args: Any, **kwargs: Any) -> STEP_OUTPUT:
         outputs = self.step_logic(batch)

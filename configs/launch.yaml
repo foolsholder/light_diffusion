@@ -1,6 +1,6 @@
 defaults:
-  - lightning_wrapper/fzero_voc2_pret
-  - datamodule/zero_sst2
+  - lightning_wrapper/cross_attention
+  - datamodule/wiki
 
 max_steps: 200_000
 seed: 1337

@@ -79,7 +79,10 @@ class ScoreEstimator(BertEncoder):
                 dtype=hidden_state.dtype
             )
         assert cross_attention_mask is not None
-        cross_attention_mask = self.get_extended_attention_mask(cross_attention_mask)
+        cross_attention_mask = self.get_extended_attention_mask(
+            cross_attention_mask,
+            dtype=cross_encodings.dtype
+        )
 
         output = super(ScoreEstimator, self).forward(
             hidden_states=hidden_state,

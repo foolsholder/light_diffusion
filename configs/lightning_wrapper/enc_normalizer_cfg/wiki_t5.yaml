@@ -1,0 +1,3 @@
+_target_: "diffusion.EncNormalizer"
+enc_mean_path: "data/t5-base-stats/mean.pth"
+enc_std_path: "data/t5-base-stats/std.pth"
