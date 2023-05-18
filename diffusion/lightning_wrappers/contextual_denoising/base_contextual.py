@@ -12,6 +12,7 @@ import os
 import os.path as osp
 from transformers import BertTokenizerFast, BertConfig, T5TokenizerFast, T5Config
 from torchmetrics import Accuracy
+import logging
 
 from collections import Counter
 
@@ -167,7 +168,6 @@ class ContextualDenoising(L.LightningModule):
 
         noisy_part: EncoderOutput = self.clean_part_encoder.forward(**to_clean_part)
         clean_part: EncoderOutput = self.noisy_part_encoder.forward(**to_noise_part)
-
         return {
             "noisy_part": noisy_part,
             "clean_part": clean_part
@@ -183,15 +183,17 @@ class ContextualDenoising(L.LightningModule):
         pred_x_0 = outputs['x_0']
         gt_x_0 = outputs['x_0_target']
 
-        x0_loss = torch.mean((pred_x_0 - gt_x_0)**2, dim=1)
-
-        logits = self.noisy_part_encoder.classify(normed=pred_x_0)
+        x0_loss = torch.mean((pred_x_0 - gt_x_0)**2, dim=2)
+        logits = self.noisy_part_encoder.classify(normed=pred_x_0).permute(0, 2, 1)
+        # [BS; C; LEN]
+        # [BS; LEN]
         ce_loss = torch.nn.functional.cross_entropy(logits, input_ids)
 
         def masked_loss(loss: FloatTensor, mask: FloatTensor):
             loss = loss * mask
             loss = torch.sum(loss, dim=1) / torch.sum(mask, dim=1)
             loss = torch.mean(loss)
+            return loss
 
         x0_loss = masked_loss(x0_loss, attn_mask)
         ce_loss = masked_loss(ce_loss, attn_mask)

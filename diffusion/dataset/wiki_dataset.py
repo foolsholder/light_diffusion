@@ -28,7 +28,6 @@ class WikiDataset(Dataset):
         self.max_length = max_length
 
         if train:
-            os.environ['HF_DATASETS_OFFLINE'] = '1'
             self.dataset = load_dataset("Graphcore/wikipedia-bert-128", split='train')
         else:
             self.dataset = []
