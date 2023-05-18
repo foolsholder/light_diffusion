@@ -10,6 +10,7 @@ from typing import Union, Dict, Any, Optional, List
 from transformers import BertTokenizerFast, T5TokenizerFast
 from datasets import load_dataset
 from json import dump, load
+from datasets.utils.info_utils import VerificationMode
 
 
 class WikiDataset(Dataset):
@@ -27,6 +28,7 @@ class WikiDataset(Dataset):
         self.max_length = max_length
 
         if train:
+            os.environ['HF_DATASETS_OFFLINE'] = '1'
             self.dataset = load_dataset("Graphcore/wikipedia-bert-128", split='train')
         else:
             self.dataset = []
