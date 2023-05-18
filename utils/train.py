@@ -65,7 +65,7 @@ def main(cfg: Config):
         callbacks=[
             ModelCheckpoint(
                 dirpath=exp_folder,
-                filename='{epoch:02d}',
+                filename='{step:d}',
                 every_n_train_steps=cfg.every_n_train_steps,
                 save_top_k=-1,
                 auto_insert_metric_name=True,

@@ -1,4 +1,5 @@
 _target_: "diffusion.dataset.SimpleDataModule"
+_recursive_: False
 
 train_dataset_cfg:
   _target_: "diffusion.dataset.wiki_dataset.WikiDataset"

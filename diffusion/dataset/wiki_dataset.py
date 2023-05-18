@@ -23,8 +23,8 @@ class WikiDataset(Dataset):
     ):
         super(WikiDataset, self).__init__()
 
-        self.noisy_tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
-        self.clean_tokenizer = T5TokenizerFast.from_pretrained('t5-base')
+        self.noisy_tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
+        self.clean_tokenizer: T5TokenizerFast = T5TokenizerFast.from_pretrained('t5-base')
         self.max_length = max_length
 
         if train:

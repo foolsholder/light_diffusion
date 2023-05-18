@@ -14,3 +14,4 @@ slurm-*.out
 accuracy
 stats
 data
+generated_texts

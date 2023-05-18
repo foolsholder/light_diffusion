@@ -6,13 +6,14 @@ from functools import partial
 from torch import FloatTensor, nn, Tensor
 from torch.nn import functional as F
 
-from typing import Any, Optional, Dict, List, Union, Callable, Any
+from typing import Any, Optional, Dict, List, Union, Callable, Any, Tuple
 from hydra.utils import instantiate
 import os
 import os.path as osp
 from transformers import BertTokenizerFast, BertConfig, T5TokenizerFast, T5Config
 from torchmetrics import Accuracy
 import logging
+from tqdm.auto import trange
 
 from collections import Counter
 
@@ -66,7 +67,7 @@ class ContextualDenoising(L.LightningModule):
 
         self.score_estimator = ScoreEstimator(bert_config)
 
-        self.sde = instantiate(sde_cfg)
+        self.sde: SDE = instantiate(sde_cfg)
         rsde = RSDE(self.sde)
         self.solver = EulerSolver(rsde, self.sde.ode_sampling)
 
@@ -150,7 +151,9 @@ class ContextualDenoising(L.LightningModule):
             "x_0_target": normed_ddpm_target
         }
 
-    def sample_encodings(self, batch: Dict[str, Tensor]) -> Dict[str, EncoderOutput]:
+    def split_batch(
+        self, batch: Dict[str, Tensor]
+    ) -> Tuple[Dict[str, Tensor], Dict[str, Tensor]]:
         keys = [
             'input_ids',
             'attention_mask',
@@ -165,9 +168,13 @@ class ContextualDenoising(L.LightningModule):
                 key_name = prefix + k
                 if key_name in batch:
                     dct_part[k] = batch[key_name]
+        return to_clean_part, to_noise_part
 
-        noisy_part: EncoderOutput = self.clean_part_encoder.forward(**to_clean_part)
-        clean_part: EncoderOutput = self.noisy_part_encoder.forward(**to_noise_part)
+    def sample_encodings(self, batch: Dict[str, Tensor]) -> Dict[str, EncoderOutput]:
+        to_clean_part, to_noise_part = self.split_batch(batch)
+
+        clean_part: EncoderOutput = self.clean_part_encoder.forward(**to_clean_part)
+        noisy_part: EncoderOutput = self.noisy_part_encoder.forward(**to_noise_part)
         return {
             "noisy_part": noisy_part,
             "clean_part": clean_part
@@ -206,6 +213,52 @@ class ContextualDenoising(L.LightningModule):
             'x0_loss': x0_loss,
             'loss': x0_loss + self.ce_coef * ce_loss
         }
+
+    @torch.no_grad()
+    def generate_text(self, batch: Dict[str, Tensor]):
+        self.eval()
+        to_clean_part, to_noise_part = self.split_batch(batch)
+        clean_part: EncoderOutput = self.clean_part_encoder.forward(**to_clean_part)
+        noisy_part_attention_mask = to_noise_part['attention_mask']
+        noisy_part_pred_encodings = self.generate_encodings(
+            shape=noisy_part_attention_mask.shape + (clean_part.normed.shape[-1],),
+            cross_encodings=clean_part.normed,
+            cross_attention_mask=to_clean_part['attention_mask'],
+            attn_mask=noisy_part_attention_mask,
+            verbose=True
+        )
+        logits = self.noisy_part_encoder.classify(normed=noisy_part_pred_encodings)
+        text_labels = torch.argmax(logits, dim=-1)
+        return text_labels
+
+    def generate_encodings(
+            self,
+            shape: Tuple[int],
+            cross_encodings: FloatTensor,
+            cross_attention_mask: FloatTensor,
+            attn_mask: Optional[torch.Tensor] = None,
+            verbose: bool = False
+    ) -> torch.Tensor:
+        device = cross_encodings.device
+        if attn_mask is None:
+            attn_mask = torch.ones(shape[:-1], device=device)
+        score_call = partial(
+            self.score_estimator.forward,
+            cross_attention_mask=cross_attention_mask,
+            cross_encodings=cross_encodings
+        )
+        with torch.no_grad():
+            x_t = x_mean = self.sde.prior_sampling(shape).to(device)
+            timesteps = torch.linspace(self.sde.T, self.sde.T / self.sde.N, self.sde.N, device=device)
+            rang = trange if verbose else range
+
+            for idx in rang(self.sde.N):
+                t = timesteps[idx]
+                input_t = t * torch.ones(shape[0], device=device)
+                new_state = self.solver.step(score_call, x_t, input_t, attn_mask)
+                x_t, x_mean = new_state['x_t'], new_state['x_mean']
+
+        return x_mean
 
     def on_train_epoch_end(self) -> None:
         self.log_dict(self.compute_epoch_mean(self.train_metric_to_log), is_train=True, sync_dist=True)
