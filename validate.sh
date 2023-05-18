@@ -1,1 +1,1 @@
-python3 utils/validate.py experiments/ddpm0_finetuned_pretrained_head 76 --ema
+python3 utils/generate_text.py experiments/cross_attention_t5_bert_se/step=10000.ckpt --ema

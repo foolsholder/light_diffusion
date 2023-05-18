@@ -62,12 +62,23 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False):
     device = 'cuda:0'
     batch = next(iter(train_loader))
     batch = dict_to_device(batch, device)
+    wrapped_model.to(device)
     generated_ids = wrapped_model.generate_text(batch)
     dataset: diffusion.dataset.wiki_dataset.WikiDataset = train_loader.dataset
     tokenizer = dataset.noisy_tokenizer
-    generated_text = tokenizer.batch_decode(generated_ids)
+    generated_text = []
+    for sent, attn_mask in zip(generated_ids, batch['noisy_attention_mask']):
+        sent = sent[:sum(attn_mask)]
+        generated_text += [tokenizer.decode(sent)]
+
     with open(osp.join(save_folder, Path(ckpt_name).stem + '.txt'), 'w') as fout:
-        print(generated_text, file=fout)
+        condition = dataset.clean_tokenizer.batch_decode(
+            batch['clean_input_ids'], skip_special_tokens=True
+        )
+        for fst, snd in zip(condition, generated_text):
+            print("CONDITION:", fst, file=fout)
+            print("GENERATED:", snd, file=fout)
+            print("-" * 100, file=fout)
 
 import argparse
 def parse_args():
@@ -78,6 +89,7 @@ def parse_args():
 
 if __name__ == '__main__':
     os.environ['EXP_PATH'] = osp.abspath('experiments/')
+    os.environ['BASE_PATH'] = osp.abspath('./')
     args = parse_args()
     path = Path(args.path_to_ckpt)
     main(path.parent, path.name, args.ema)
