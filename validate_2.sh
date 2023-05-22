@@ -1,1 +1,2 @@
-python3 utils/validate.py experiments/ddpm0_finetuned_head 76 --ema
+python3 utils/generate_text.py experiments/cross_attention_t5_bert_se_600k/step=400000.ckpt --ema --count 2048
+python3 utils/calculate_bloom_loss.py generated_texts/ema_cross_attention_t5_bert_se_600k/step=400000.json
