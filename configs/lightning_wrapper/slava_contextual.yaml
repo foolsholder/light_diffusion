@@ -6,4 +6,4 @@ defaults:
   - enc_normalizer_cfg/wiki_t5@clean_enc_normalizer_cfg
   - sde_cfg/cosine_sd
 
-ce_coef: 0.1
+ce_coef: 0.0
