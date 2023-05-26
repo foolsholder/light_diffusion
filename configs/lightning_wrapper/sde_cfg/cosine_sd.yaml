@@ -1,0 +1,5 @@
+_target_: "diffusion.dynamics.CosineSD"
+N: 1000
+d: 10
+prediction: "x_0"
+ode_sampling: False
