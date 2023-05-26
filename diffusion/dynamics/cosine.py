@@ -9,6 +9,7 @@ class CosineSD(SDE):
         self,
         d: int = 1,
         N: int = 1000,
+        prediction: str = 'x_0',
         ode_sampling: bool = False
     ):
         """
@@ -18,6 +19,7 @@ class CosineSD(SDE):
         super().__init__(N=N, ode_sampling=ode_sampling)
         self.d = d
         self.t_thr = 0.95
+        self.prediction = prediction
 
     @property
     def T(self):

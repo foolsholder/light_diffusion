@@ -1,1 +1,2 @@
 from .base_contextual import ContextualDenoising
+from .slava_contextual import SlavaContextualDenoising

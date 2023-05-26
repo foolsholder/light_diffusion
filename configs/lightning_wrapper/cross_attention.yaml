@@ -4,6 +4,5 @@ defaults:
   - sched_partial/linear_warmup
   - enc_normalizer_cfg/wiki_pret@noisy_enc_normalizer_cfg
   - enc_normalizer_cfg/wiki_t5@clean_enc_normalizer_cfg
-  - sde_cfg/beta_linear
 
 ce_coef: 0.1

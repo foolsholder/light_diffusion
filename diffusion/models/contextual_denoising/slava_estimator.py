@@ -147,10 +147,8 @@ def timestep_embedding(timesteps, dim, max_period=10000):
 
 
 class SlavaEstimator(nn.Module):
-    def __init__(self, input_size, config):
+    def __init__(self, config):
         super(SlavaEstimator, self).__init__()
-
-        self.input_size = input_size
         self.config = config
         hidden_layer_dim = self.config.hidden_size
         self._hidden_layer_dim = hidden_layer_dim
