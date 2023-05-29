@@ -5,4 +5,4 @@ defaults:
   - enc_normalizer_cfg/wiki_pret@noisy_enc_normalizer_cfg
   - enc_normalizer_cfg/wiki_t5@clean_enc_normalizer_cfg
 
-ce_coef: 0.1
+ce_coef: 0.0

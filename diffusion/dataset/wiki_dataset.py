@@ -77,3 +77,49 @@ class WikiDataset(Dataset):
                 result[prefix + k] = torch.LongTensor(v)
 
         return result
+
+
+class ContextualSST2Dataset(Dataset):
+    def __init__(
+            self,
+            train: bool = True,
+            max_length: int = 96,
+    ):
+        super(WikiDataset, self).__init__()
+
+        self.noisy_tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
+        self.clean_tokenizer: T5TokenizerFast = T5TokenizerFast.from_pretrained('t5-base')
+        self.max_length = max_length
+
+        self.dataset = load_dataset("glue/sst2", split='train' if train else 'validation')
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(
+            self,
+            index: int
+    ):
+        obj = self.dataset[index]
+        sentence = obj['sentence']
+        label = int(obj['labels'])
+        # cause parts were tokenized by bertTokenizer
+        clean_part_sentence = sentence
+
+        result: Dict[str, List[int]] = dict()
+        for sentence, prefix, tokenizer in zip(
+            [clean_part_sentence],
+            ['clean_'],
+            [self.clean_tokenizer]
+        ):
+            tokenized: Dict[str, List[int]] = tokenizer(
+                sentence,
+                truncation=True,
+                padding="max_length",
+                max_length=self.max_length
+            )
+            for k, v in tokenized.items():
+                result[prefix + k] = torch.LongTensor(v)
+        result['labels'] = torch.LongTensor([label])[0]
+
+        return result
