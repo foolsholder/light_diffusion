@@ -47,14 +47,24 @@ def main(cfg: Config):
         print(yaml_cfg, file=fout)
     #exit(0)
     if cfg.pretrained_path:
+        dct = torch.load(
+            osp.join(
+                os.environ['BASE_PATH'],
+                cfg.pretrained_path
+            ),
+            map_location='cpu'
+        )['state_dict']
+        st_dct = wrapped_model.state_dict()
+        for k, v in dct.items():
+            if k in st_dct:
+                assert(v.shape == st_dct[k].shape)
+        missing_keys = []
+        for k, v in st_dct.items():
+            if not k in dct:
+                missing_keys += [k]
+        print("Missing keys:", ", ".join(missing_keys))
         wrapped_model.load_state_dict(
-            torch.load(
-                osp.join(
-                    os.environ['EXP_PATH'],
-                    cfg.pretrained_path
-                ),
-                map_location='cpu'
-            )
+            dct, strict=False
         )
 
     if torch.cuda.device_count() > 1:
@@ -75,10 +85,10 @@ def main(cfg: Config):
         callbacks=[
             ModelCheckpoint(
                 dirpath=exp_folder,
-                filename='{step:d}',
+                filename='step_{step:d}',
                 every_n_train_steps=cfg.every_n_train_steps,
                 save_top_k=-1,
-                auto_insert_metric_name=True,
+                auto_insert_metric_name=False,
                 save_weights_only=False
             ),
             LearningRateMonitor(logging_interval='step'),
@@ -105,6 +115,7 @@ def main(cfg: Config):
         )
 
 if __name__ == '__main__':
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
     os.environ['BASE_PATH'] = './'
     os.environ['EXP_PATH'] = osp.abspath('experiments/')
     main()

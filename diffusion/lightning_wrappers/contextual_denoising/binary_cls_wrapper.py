@@ -36,10 +36,10 @@ from diffusion.models.contextual_denoising.typings import EncoderOutput
 
 from diffusion.helper import LinearWarmupLR
 from diffusion.dataset import EncNormalizer, enc_normalizer
-from .base_contextual import ContextualDenoising
+from .slava_contextual import SlavaContextualDenoising
 
 
-class BinaryClassification(ContextualDenoising):
+class BinaryClassification(SlavaContextualDenoising):
     def __init__(
         self,
         noisy_enc_normalizer_cfg: EncNormalizerCfg,
@@ -87,7 +87,7 @@ class BinaryClassification(ContextualDenoising):
             "clean_part": clean_part
         }
 
-    def validation_step(self, batch: Dict[str, Tensor], **kwargs: Any) -> Dict[str, Tensor] | None:
+    def validation_step(self, batch: Dict[str, Tensor], *args, **kwargs: Any) -> Dict[str, Tensor] | None:
         to_clean_part, to_noise_part = self.split_batch(batch)
         encodings = self.sample_encodings(batch)
         clean_part = encodings['clean_part']
@@ -97,14 +97,14 @@ class BinaryClassification(ContextualDenoising):
             cross_encodings=clean_part.normed,
             cross_attention_mask=to_clean_part['attention_mask'],
             attn_mask=noisy_part_attention_mask,
-            verbose=False
+            verbose=True
         ) # normed
         # [2; 3; 768]
         # [BS; 3; 768]
         diff = self.gt_encodings_normed[None, :, 1] - noisy_part_pred_encodings[:, None, 1]
         # [BS; 2; 768]
         diff = diff.view(diff.shape[0], 2, -1)
-        diff = torch.sum(diff**2, dim=1)
+        diff = torch.sum(diff**2, dim=2)
         # [BS; 2]
         pred_labels = torch.argmin(diff, dim=1)
         self.valid_accuracy.update(preds=pred_labels, target=batch['labels'].long().view(-1))

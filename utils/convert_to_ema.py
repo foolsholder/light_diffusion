@@ -23,7 +23,7 @@ def main(exp_folder: str, ckpt_name: str, seed: Optional[int]):
         seed = cfg.seed
     seed_everything(seed)
 
-    wrapped_model = instantiate(cfg.lightning_wrapper)
+    wrapped_model = instantiate(cfg.lightning_wrapper, _recursive_=False)
 
     wrapped_model.load_state_dict(
         torch.load(osp.join(exp_folder, ckpt_name), map_location='cpu')['state_dict'], strict=True
@@ -52,5 +52,7 @@ def parse_args():
 
 if __name__ == '__main__':
     os.environ['DATA_PATH'] = osp.abspath('data/')
+    os.environ['BASE_PATH'] = './'
+    os.environ['EXP_PATH'] = osp.abspath('experiments/')
     args = parse_args()
     main(args.exp_folder, args.ckpt_name, args.seed)

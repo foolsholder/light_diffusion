@@ -30,10 +30,10 @@ class SimpleDataModule(L.LightningDataModule):
     def train_dataloader(self):
         return instantiate(self.train_dataloader_cfg, dataset=self.train_dataset)
 
-    def val_dataloader(self) -> List | DataLoader:
+    def val_dataloader(self) -> List[DataLoader]:
         if len(self.valid_dataset) == 0:
             return []
-        return instantiate(self.valid_dataloader_cfg, dataset=self.valid_dataset)
+        return [instantiate(self.valid_dataloader_cfg, dataset=self.valid_dataset)]
 
     def test_dataloader(self):
         return self.val_dataloader()

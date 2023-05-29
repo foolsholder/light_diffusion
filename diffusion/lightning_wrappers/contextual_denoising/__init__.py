@@ -1,2 +1,3 @@
-from .base_contextual import ContextualDenoising, BinaryClassification
+from .base_contextual import ContextualDenoising
 from .slava_contextual import SlavaContextualDenoising
+from .binary_cls_wrapper import BinaryClassification
