@@ -33,7 +33,7 @@ def main(cfg: Config):
     print(yaml_cfg)
     print(osp.abspath('.'))
 
-    wrapped_model = instantiate(cfg.lightning_wrapper, _recursive_=False)
+    wrapped_model: torch.nn.Module = instantiate(cfg.lightning_wrapper, _recursive_=False)
     #wrapped_model.score_estimator = torch.compile(wrapped_model.score_estimator, mode='default')
     #wrapped_model = torch.compile(wrapped_model, mode='max-autotune')
 
@@ -46,6 +46,16 @@ def main(cfg: Config):
     with open(osp.join(exp_folder, 'config.yaml'), 'w') as fout:
         print(yaml_cfg, file=fout)
     #exit(0)
+    if cfg.pretrained_path:
+        wrapped_model.load_state_dict(
+            torch.load(
+                osp.join(
+                    os.environ['EXP_PATH'],
+                    cfg.pretrained_path
+                ),
+                map_location='cpu'
+            )
+        )
 
     if torch.cuda.device_count() > 1:
         strategy = DDPStrategy(

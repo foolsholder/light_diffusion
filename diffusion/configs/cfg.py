@@ -14,3 +14,4 @@ class Config:
     exp_name: str
     seed: int
     every_n_train_steps: int
+    pretrained_path: str
