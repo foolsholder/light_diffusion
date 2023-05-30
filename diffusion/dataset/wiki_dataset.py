@@ -124,3 +124,96 @@ class ContextualSST2Dataset(Dataset):
         result['labels'] = torch.LongTensor([label])[0]
 
         return result
+
+
+class ContextualColaDataset(Dataset):
+    def __init__(
+            self,
+            train: bool = True,
+            max_length: int = 96,
+    ):
+        super(ContextualColaDataset, self).__init__()
+
+        self.noisy_tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
+        self.clean_tokenizer: T5TokenizerFast = T5TokenizerFast.from_pretrained('t5-base')
+        self.max_length = max_length
+
+        self.dataset = load_dataset("glue", "cola", split='train' if train else 'validation')
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(
+            self,
+            index: int
+    ):
+        obj = self.dataset[index]
+        sentence = obj['sentence']
+        label = int(obj['label'])
+        # cause parts were tokenized by bertTokenizer
+        clean_part_sentence = sentence
+
+        result: Dict[str, List[int]] = dict()
+        for sentence, prefix, tokenizer in zip(
+            [clean_part_sentence, "yes" if label else "no"],
+            ['clean_', 'noisy_'],
+            [partial(self.clean_tokenizer, max_length=self.max_length),
+             partial(self.noisy_tokenizer, max_length=3)]
+        ):
+            tokenized: Dict[str, List[int]] = tokenizer(
+                sentence,
+                truncation=True,
+                padding="max_length"
+            )
+            for k, v in tokenized.items():
+                result[prefix + k] = torch.LongTensor(v)
+        result['labels'] = torch.LongTensor([label])[0]
+
+        return result
+
+
+
+class ContextualQQPDataset(Dataset):
+    def __init__(
+            self,
+            train: bool = True,
+            max_length: int = 96,
+    ):
+        super(ContextualQQPDataset, self).__init__()
+
+        self.noisy_tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
+        self.clean_tokenizer: T5TokenizerFast = T5TokenizerFast.from_pretrained('t5-base')
+        self.max_length = max_length
+
+        self.dataset = load_dataset("glue", "qqp", split='train' if train else 'validation')
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(
+            self,
+            index: int
+    ):
+        obj = self.dataset[index]
+        sentence = obj['question1'] + " " + obj['question2']
+        label = int(obj['label'])
+        # cause parts were tokenized by bertTokenizer
+        clean_part_sentence = sentence
+
+        result: Dict[str, List[int]] = dict()
+        for sentence, prefix, tokenizer in zip(
+            [clean_part_sentence, "yes" if label else "no"],
+            ['clean_', 'noisy_'],
+            [partial(self.clean_tokenizer, max_length=self.max_length),
+             partial(self.noisy_tokenizer, max_length=3)]
+        ):
+            tokenized: Dict[str, List[int]] = tokenizer(
+                sentence,
+                truncation=True,
+                padding="max_length"
+            )
+            for k, v in tokenized.items():
+                result[prefix + k] = torch.LongTensor(v)
+        result['labels'] = torch.LongTensor([label])[0]
+
+        return result

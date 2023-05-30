@@ -156,7 +156,8 @@ class BinaryClassification(SlavaContextualDenoising):
         labels = batch['labels'].long().view(-1)
         pred_labels = torch.argmin(diff, dim=1)
         self.valid_accuracy.update(preds=pred_labels[:len(labels)], target=labels)
-        self.accuracy_tiles.update(preds=pred_labels, target=torch.tile(labels, (self.test_count,)))
+        pred_labels = pred_labels.reshape(self.test_count, len(labels)).mean(dim=0)
+        self.accuracy_tiles.update(preds=pred_labels, target=labels)
 
     def on_test_epoch_start(self) -> None:
         self.valid_accuracy.reset()
