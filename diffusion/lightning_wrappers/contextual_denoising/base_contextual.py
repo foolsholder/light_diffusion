@@ -282,9 +282,12 @@ class ContextualDenoising(L.LightningModule):
         self.add_to_dict(self.train_metric_to_log, outputs)
         return super().on_train_batch_end(outputs, batch, batch_idx)
 
-    def log_dict(self, losses: Dict[str, Tensor], is_train: bool = True, *args, **kwargs):
-        suffix = 'train' if is_train else 'valid'
-        losses = {key + f'/{suffix}': value for key, value in losses.items()}
+    def log_dict(self, losses: Dict[str, Tensor],
+                 is_train: bool = True, apply_suffix: bool = True,
+                 *args, **kwargs):
+        if apply_suffix:
+            suffix = 'train' if is_train else 'valid'
+            losses = {key + f'/{suffix}': value for key, value in losses.items()}
         return super().log_dict(losses, *args, **kwargs)
 
     def validation_step(self, *args: Any, **kwargs: Any) -> STEP_OUTPUT | None:

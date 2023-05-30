@@ -47,7 +47,8 @@ class BinaryClassification(SlavaContextualDenoising):
         sde_cfg: SDE,
         optim_partial: Callable[[Any], torch.optim.Optimizer],
         sched_partial: Callable[[Any], LinearWarmupLR],
-        ce_coef: float = 0
+        ce_coef: float = 0,
+        test_count: int = 11,
     ) -> None:
         super().__init__(
             noisy_enc_normalizer_cfg,
@@ -74,6 +75,8 @@ class BinaryClassification(SlavaContextualDenoising):
             "gt_encodings_true", encodings_gt_true
         )
         self.valid_accuracy = BinaryAccuracy()
+        self.accuracy_tiles = BinaryAccuracy()
+        self.test_count = test_count
 
     def sample_encodings(self, batch: Dict[str, Tensor]) -> Dict[str, EncoderOutput]:
         to_clean_part, to_noise_part = self.split_batch(batch)
@@ -92,9 +95,11 @@ class BinaryClassification(SlavaContextualDenoising):
         encodings = self.sample_encodings(batch)
         clean_part = encodings['clean_part']
         noisy_part_attention_mask = to_noise_part['attention_mask']
+        gen_shape = noisy_part_attention_mask.shape[:2] + \
+                    (clean_part.normed.shape[-1],)
         noisy_part_pred_encodings = self.generate_encodings(
-            shape=noisy_part_attention_mask.shape + (clean_part.normed.shape[-1],),
-            cross_encodings=clean_part.normed,
+            shape=gen_shape,
+            cross_encodings=torch.tile(clean_part.normed, (self.test_count, 1, 1)),
             cross_attention_mask=to_clean_part['attention_mask'],
             attn_mask=noisy_part_attention_mask,
             verbose=True
@@ -106,13 +111,61 @@ class BinaryClassification(SlavaContextualDenoising):
         diff = diff.view(diff.shape[0], 2, -1)
         diff = torch.sum(diff**2, dim=2)
         # [BS; 2]
+        labels = batch['labels'].long().view(-1)
         pred_labels = torch.argmin(diff, dim=1)
-        self.valid_accuracy.update(preds=pred_labels, target=batch['labels'].long().view(-1))
+        self.valid_accuracy.update(preds=pred_labels, target=labels)
 
     def on_validation_epoch_start(self) -> None:
         self.valid_accuracy.reset()
+        self.accuracy_tiles.reset()
         return super().on_validation_epoch_start()
 
     def on_validation_epoch_end(self) -> None:
-        self.log_dict({'accuracy': self.valid_accuracy.compute()}, is_train=False)
+        self.log_dict({'accuracy/valid': self.valid_accuracy.compute()},
+                      is_train=False, apply_suffix=False)
+        return super().on_validation_epoch_end()
+
+    def test_step(self, batch: Dict[str, Tensor], *args, **kwargs: Any) -> Dict[str, Tensor] | None:
+        to_clean_part, to_noise_part = self.split_batch(batch)
+        encodings = self.sample_encodings(batch)
+        clean_part = encodings['clean_part']
+        noisy_part_attention_mask = to_noise_part['attention_mask']
+        gen_shape = (noisy_part_attention_mask.shape[0] * self.test_count,) + \
+                    (noisy_part_attention_mask.shape[1],) + \
+                    (clean_part.normed.shape[-1],)
+        noisy_part_pred_encodings = self.generate_encodings(
+            shape=gen_shape,
+            cross_encodings=torch.tile(clean_part.normed, (self.test_count, 1, 1)),
+            cross_attention_mask=torch.tile(
+                to_clean_part['attention_mask'],
+                (self.test_count, 1)
+            ),
+            attn_mask=torch.tile(
+                noisy_part_attention_mask,
+                (self.test_count, 1)
+            ),
+            verbose=True
+        ) # normed
+        # [2; 3; 768]
+        # [BS; 3; 768]
+        diff = self.gt_encodings_normed[None, :, 1] - noisy_part_pred_encodings[:, None, 1]
+        # [BS; 2; 768]
+        diff = diff.view(diff.shape[0], 2, -1)
+        diff = torch.sum(diff**2, dim=2)
+        # [BS; 2]
+        labels = batch['labels'].long().view(-1)
+        pred_labels = torch.argmin(diff, dim=1)
+        self.valid_accuracy.update(preds=pred_labels[:len(labels)], target=labels)
+        self.accuracy_tiles.update(preds=pred_labels, target=torch.tile(labels, (self.test_count,)))
+
+    def on_test_epoch_start(self) -> None:
+        self.valid_accuracy.reset()
+        self.accuracy_tiles.reset()
+        return super().on_validation_epoch_start()
+
+    def on_test_epoch_end(self) -> None:
+        self.log_dict({'accuracy/valid@1': self.valid_accuracy.compute()},
+                      is_train=False, apply_suffix=False)
+        self.log_dict({f'accuracy/valid@{self.test_count}': self.accuracy_tiles.compute()},
+                      is_train=False, apply_suffix=False)
         return super().on_validation_epoch_end()

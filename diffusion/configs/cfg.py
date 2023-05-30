@@ -9,9 +9,12 @@ class Config:
     datamodule: DataModuleCfg
 
     max_steps: int
+    max_epochs: int
     grad_clip_norm: float
     project: str
     exp_name: str
     seed: int
     every_n_train_steps: int
+    every_n_epochs: int
     pretrained_path: str
+    precision: str

@@ -66,14 +66,6 @@ def main(exp_folder: str, ckpt_num: int, use_ema: bool = False):
         wrapped_model,
         datamodule=instantiate(cfg.datamodule, _recursive_=False)
     )
-    wrapped_model: diffusion.lightning_wrappers.ZeroVoc2
-
-    save_folder = osp.join('accuracy', prefix_folder + osp.basename(exp_folder))
-    if not osp.exists(save_folder):
-        os.makedirs(save_folder)
-    acc = wrapped_model.test_accuracy.compute()
-    with open(osp.join(save_folder, f'epoch_{ckpt_num}.txt'), 'w') as fout:
-        print(acc, file=fout)
 
 import argparse
 def parse_args():
