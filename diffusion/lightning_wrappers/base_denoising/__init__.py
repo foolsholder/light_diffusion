@@ -7,3 +7,4 @@ from .qqp_cls import QQPFreezedClassification
 from .fintuned_zero_voc2 import FinetunedZeroVoc2
 from .sst2_cls_head_pretrained import PretrainedSST2FreezedClassification
 from .fintuned_zero_voc2_fp_head import FinetunedZeroVoc2FPHead
+from .base_new_slava import SecondZeroVoc2

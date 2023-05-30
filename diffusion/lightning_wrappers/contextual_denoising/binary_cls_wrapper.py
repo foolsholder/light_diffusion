@@ -99,7 +99,7 @@ class BinaryClassification(SlavaContextualDenoising):
                     (clean_part.normed.shape[-1],)
         noisy_part_pred_encodings = self.generate_encodings(
             shape=gen_shape,
-            cross_encodings=torch.tile(clean_part.normed, (self.test_count, 1, 1)),
+            cross_encodings=clean_part.normed,
             cross_attention_mask=to_clean_part['attention_mask'],
             attn_mask=noisy_part_attention_mask,
             verbose=True
@@ -117,7 +117,6 @@ class BinaryClassification(SlavaContextualDenoising):
 
     def on_validation_epoch_start(self) -> None:
         self.valid_accuracy.reset()
-        self.accuracy_tiles.reset()
         return super().on_validation_epoch_start()
 
     def on_validation_epoch_end(self) -> None:

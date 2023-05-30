@@ -1,4 +1,4 @@
-_target_: "diffusion.ZeroVoc2"
+_target_: "diffusion.lightning_wrappers.base_denosing.ZeroVoc2"
 defaults:
   - optim_partial/adam
   - sched_partial/linear_warmup

@@ -178,11 +178,11 @@ class ZeroVoc2(L.LightningModule):
         # print(logits.shape, flush=True)
 
         logits = logits[:, 0]
-        labels_binary = batch['labels'].view(-1)
-        labels_30k = input_ids[:, 0]
+        labels_binary = batch['labels'].long().view(-1)
+        labels_30k = input_ids[:, 0].long()
 
         ce_loss = torch.nn.functional.cross_entropy(logits, labels_30k)
-        bce_loss = torch.nn.functional.cross_entropy(logits[:, [2053, 2748]], labels_binary.float())
+        bce_loss = torch.nn.functional.cross_entropy(logits[:, [2053, 2748]], labels_binary)
 
         batch_size = len(logits)
 

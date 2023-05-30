@@ -1,4 +1,4 @@
-_target_: "diffusion.dataset.GlueDataModule"
+_target_: "diffusion.dataset.SimpleDataModule"
 
 train_dataset_cfg:
   _target_: "diffusion.dataset.ZeroSST2Dataset"

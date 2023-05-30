@@ -1,0 +1,7 @@
+_target_: "diffusion.lightning_wrappers.base_denoising.SecondZeroVoc2"
+defaults:
+  - sched_partial/linear_warmup
+  - enc_normalizer_cfg/wiki_pret
+
+ce_coef: 0.1
+label_mask_pos: 0

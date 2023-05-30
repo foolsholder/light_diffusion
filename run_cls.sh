@@ -11,8 +11,7 @@ HYDRA_FULL_ERROR=1 python3 utils/train_by_epoch.py \
     ++lightning_wrapper.optim_partial.lr=2e-4 \
     ++lightning_wrapper.sched_partial.warmup_start_lr=1e-6 \
     +datamodule=contextual_sst2 \
-    ++datamodule.train_dataloader_cfg.batch_size=128 \
-    ++datamodule.train_dataloader_cfg.num_workers=10 \
+    ++datamodule.train_dataloader_cfg.batch_size=256 \
+    ++datamodule.train_dataloader_cfg.num_workers=15 \
     ++pretrained_path=experiments/slava_contextual_adam_cos_t5_bert_se_800k_lr2e-4/ema-step_300000.ckpt \
-    precision=32 ++lightning_wrapper.test_count=11 \
-    
+    precision=bf16-mixed
