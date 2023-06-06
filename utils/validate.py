@@ -3,6 +3,8 @@ import os
 import os.path as osp
 
 import torch
+from pathlib import Path
+import json
 
 from omegaconf import DictConfig, OmegaConf
 from hydra.utils import instantiate
@@ -20,16 +22,16 @@ from diffusion import Config
 import diffusion
 
 
-def main(exp_folder: str, ckpt_num: int, use_ema: bool = False):
+def main(exp_folder: str, ckpt_name: str, use_ema: bool = False):
     seed_everything(1337, workers=True)
 
-    cfg = OmegaConf.load(osp.join(exp_folder, 'config.yaml'))
+    cfg: Config = OmegaConf.load(osp.join(exp_folder, 'config.yaml'))
     yaml_cfg = OmegaConf.to_yaml(cfg)
     print(yaml_cfg)
     print(osp.abspath('.'))
 
     wrapped_model = instantiate(cfg.lightning_wrapper, _recursive_=False)
-    ckpt_path = osp.join(exp_folder, f'epoch={ckpt_num}.ckpt')
+    ckpt_path = osp.join(exp_folder, ckpt_name)
     print(f'ckpt_path={ckpt_path}')
     ckpt = torch.load(
         ckpt_path,
@@ -60,22 +62,27 @@ def main(exp_folder: str, ckpt_num: int, use_ema: bool = False):
         precision='32'
     )
 
-    cfg.datamodule.valid_dataloader_cfg.batch_size = 2
-    cfg.datamodule.valid_dataloader_cfg.num_workers = 4
-    trainer.test(
+    cfg.datamodule.valid_dataloader_cfg.batch_size = 16
+    metrics = trainer.test(
         wrapped_model,
         datamodule=instantiate(cfg.datamodule, _recursive_=False)
-    )
+    )[0]
+    exp_name = Path(exp_name).name
+    with open(osp.join(os.environ['BASE_PATH'], 'metrics', exp_name, ckpt_name), 'w') as fout:
+        json.dump(metrics, fout, indent=4)
 
 import argparse
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('exp_folder', type=str)
-    parser.add_argument('ckpt_num', type=int)
-    parser.add_argument('--ema', default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument('ckpt_path', type=str)
+    parser.add_argument('--ema', default=True, action=argparse.BooleanOptionalAction)
     return parser.parse_args()
 
 if __name__ == '__main__':
     os.environ['EXP_PATH'] = osp.abspath('experiments/')
+    os.environ['BASE_PATH'] = osp.abspath('./')
     args = parse_args()
-    main(args.exp_folder, args.ckpt_num, args.ema)
+    path = args.ckpt_path
+    exp_folder = str(Path(path).parent)
+    ckpt_name = Path(path).name
+    main(exp_folder, ckpt_name, args.ema)

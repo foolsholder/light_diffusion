@@ -2,12 +2,12 @@ _target_: "diffusion.dataset.SimpleDataModule"
 _recursive_: False
 
 train_dataset_cfg:
-  _target_: "diffusion.dataset.wiki_dataset.ContextualQQPDataset"
+  _target_: "diffusion.dataset.wiki_dataset.ContextualRTEDataset"
   max_length: 96
   train: True
 
 valid_dataset_cfg:
-  _target_: "diffusion.dataset.wiki_dataset.ContextualQQPDataset"
+  _target_: "diffusion.dataset.wiki_dataset.ContextualRTEDataset"
   max_length: 96
   train: False
 

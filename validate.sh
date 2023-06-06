@@ -1,2 +1,5 @@
-#python3 utils/generate_text.py experiments/slava_contextual_t5_bert_se_800k_lr2e-4/step=100000.ckpt --ema --count 64
-python3 utils/calculate_bloom_loss.py generated_texts/ema_slava_contextual_adam_cos_t5_bert_se_800k_lr2e-4/step=200000.json
+#python3 utils/generate_text.py experiments/sc_adamw_cosine_sd/step_200000.ckpt --ema --count 2048
+python3 utils/calculate_bloom_loss.py generated_texts/ema_sc_adamw_cosine_sd/step_200000.json
+#python3 utils/validate.py experiments/qqp_pretrained/epoch_45.ckpt --ema
+#python3 utils/validate.py experiments/sst2_pretrained/epoch_31.ckpt --ema
+#python3 utils/validate.py experiments/second_zero_voc2/step_20000.ckpt --ema

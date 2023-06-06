@@ -11,7 +11,7 @@ from hydra.utils import instantiate
 import os
 import os.path as osp
 from transformers import BertTokenizerFast, BertConfig, T5TokenizerFast, T5Config
-from torchmetrics.classification import BinaryAccuracy
+from torchmetrics.classification import BinaryAccuracy, BinaryF1Score, BinaryMatthewsCorrCoef
 import logging
 from tqdm.auto import trange
 
@@ -76,6 +76,10 @@ class BinaryClassification(SlavaContextualDenoising):
         )
         self.valid_accuracy = BinaryAccuracy()
         self.accuracy_tiles = BinaryAccuracy()
+        self.test_f1 = BinaryF1Score()
+        self.test_f1_tiles = BinaryF1Score()
+        self.valid_corr = BinaryMatthewsCorrCoef()
+        self.test_corr_tiles = BinaryMatthewsCorrCoef()
         self.test_count = test_count
 
     def sample_encodings(self, batch: Dict[str, Tensor]) -> Dict[str, EncoderOutput]:
@@ -114,13 +118,21 @@ class BinaryClassification(SlavaContextualDenoising):
         labels = batch['labels'].long().view(-1)
         pred_labels = torch.argmin(diff, dim=1)
         self.valid_accuracy.update(preds=pred_labels, target=labels)
+        self.test_f1.update(preds=pred_labels, target=labels)
+        self.valid_corr.update(preds=pred_labels, target=labels)
 
     def on_validation_epoch_start(self) -> None:
         self.valid_accuracy.reset()
+        self.test_f1.reset()
+        self.valid_corr.reset()
         return super().on_validation_epoch_start()
 
     def on_validation_epoch_end(self) -> None:
-        self.log_dict({'accuracy/valid': self.valid_accuracy.compute()},
+        self.log_dict({'accuracy/valid@1': self.valid_accuracy.compute()},
+                      is_train=False, apply_suffix=False)
+        self.log_dict({'f1/valid@1': self.test_f1.compute()},
+                      is_train=False, apply_suffix=False)
+        self.log_dict({'mat-corr/valid@1': self.valid_corr.compute()},
                       is_train=False, apply_suffix=False)
         return super().on_validation_epoch_end()
 
@@ -155,17 +167,33 @@ class BinaryClassification(SlavaContextualDenoising):
         labels = batch['labels'].long().view(-1)
         pred_labels = torch.argmin(diff, dim=1)
         self.valid_accuracy.update(preds=pred_labels[:len(labels)], target=labels)
-        pred_labels = pred_labels.reshape(self.test_count, len(labels)).mean(dim=0)
+        self.test_f1.update(preds=pred_labels[:len(labels)], target=labels)
+        self.valid_corr.update(preds=pred_labels[:len(labels)], target=labels)
+        pred_labels = pred_labels.reshape(self.test_count, len(labels)).float().mean(dim=0)
         self.accuracy_tiles.update(preds=pred_labels, target=labels)
+        self.test_f1_tiles.update(preds=pred_labels, target=labels)
+        self.test_corr_tiles.update(preds=pred_labels, target=labels)
 
     def on_test_epoch_start(self) -> None:
         self.valid_accuracy.reset()
         self.accuracy_tiles.reset()
+        self.test_f1.reset()
+        self.test_f1_tiles.reset()
+        self.valid_corr.reset()
+        self.test_corr_tiles.reset()
         return super().on_validation_epoch_start()
 
     def on_test_epoch_end(self) -> None:
         self.log_dict({'accuracy/valid@1': self.valid_accuracy.compute()},
                       is_train=False, apply_suffix=False)
         self.log_dict({f'accuracy/valid@{self.test_count}': self.accuracy_tiles.compute()},
+                      is_train=False, apply_suffix=False)
+        self.log_dict({'f1/valid@1': self.test_f1.compute()},
+                      is_train=False, apply_suffix=False)
+        self.log_dict({f'f1/valid@{self.test_count}': self.test_f1_tiles.compute()},
+                      is_train=False, apply_suffix=False)
+        self.log_dict({'mat-corr/valid@1': self.valid_corr.compute()},
+                      is_train=False, apply_suffix=False)
+        self.log_dict({f'mat-corr/valid@{self.test_count}': self.test_corr_tiles.compute()},
                       is_train=False, apply_suffix=False)
         return super().on_validation_epoch_end()

@@ -1,1 +1,1 @@
-python3 utils/validate.py experiments/ddpm0_finetuned_pretrained_head 38 --ema
+python3 utils/validate.py experiments/second_zero_voc2/step_10000.ckpt --ema

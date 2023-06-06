@@ -11,6 +11,7 @@ HYDRA_FULL_ERROR=1 python3 utils/train.py \
     ++lightning_wrapper.optim_partial.lr=2e-4 \
     ++lightning_wrapper.sched_partial.warmup_start_lr=1e-6 \
     ++every_n_train_steps=100000 \
+    +datamodule=wiki \
     ++datamodule.train_dataloader_cfg.batch_size=256 \
     ++datamodule.train_dataloader_cfg.num_workers=30 \
     ++max_steps=800000
