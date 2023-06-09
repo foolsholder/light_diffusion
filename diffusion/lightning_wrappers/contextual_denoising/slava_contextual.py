@@ -11,6 +11,7 @@ from hydra.utils import instantiate
 import os
 import os.path as osp
 from transformers import BertTokenizerFast, BertConfig, T5TokenizerFast, T5Config
+from transformers import RobertaModel
 from torchmetrics import Accuracy
 import logging
 from tqdm.auto import trange
@@ -41,7 +42,35 @@ from diffusion.models.contextual_denoising.slava_estimator import SlavaEstimator
 
 
 class SlavaContextualDenoising(ContextualDenoising):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, roberta_pretrain: bool = False, *args, **kwargs) -> None:
+        score_estimator = SlavaEstimator(bert_config_slava)
+        if roberta_pretrain:
+            roberta: RobertaModel = RobertaModel.from_pretrained('roberta-base')
+            encoder = roberta.encoder
+            roberta_encoder_state_dict = encoder.state_dict()
+            new_state_dict = type(roberta_encoder_state_dict)()
+            se_state_dict = score_estimator.encoder.state_dict()
+            for k, v in roberta_encoder_state_dict.items():
+                assert 'layer.' in k, k
+                parts = k.split('.')
+                num = int(parts[1])
+                if num < 6:
+                    prefix = 'input_blocks'
+                elif num < 12:
+                    prefix = 'output_blocks'
+                    num -= 6
+                else:
+                    raise "???, dude, are you sure?"
+                new_k = prefix + '.' + str(num) + '.' + ".".join(parts[2:])
+                assert new_k in se_state_dict
+                assert se_state_dict[new_k].shape == v.shape
+                new_state_dict[new_k] = v
+            missing_keys: List[str] = []
+            for k in se_state_dict.keys():
+                if k not in new_state_dict:
+                    missing_keys += [k]
+            print(f'Missing keys: {", ".join(missing_keys)}')
+            score_estimator.encoder.load_state_dict(new_state_dict, strict=False)
 
-        self.score_estimator = SlavaEstimator(bert_config_slava)
+        super().__init__(*args, **kwargs)
+        self.score_estimator = score_estimator

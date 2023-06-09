@@ -1,4 +1,4 @@
-#python3 utils/generate_text.py experiments/sc_adamw_cosine_sd/step_200000.ckpt --ema --count 2048
+#python3 utils/generate_text.py experiments/sc_adamw_cosine_sd/step_200000.ckpt --ema --count 512
 python3 utils/calculate_bloom_loss.py generated_texts/ema_sc_adamw_cosine_sd/step_200000.json
 #python3 utils/validate.py experiments/qqp_pretrained/epoch_45.ckpt --ema
 #python3 utils/validate.py experiments/sst2_pretrained/epoch_31.ckpt --ema

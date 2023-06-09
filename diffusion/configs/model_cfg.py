@@ -15,7 +15,7 @@ class EncNormalizerCfg:
 @dataclass
 class LightningModelCfg:
     _target_: str
-    sde: SDECfg
+    sde_cfg: SDECfg
     enc_normalizer: EncNormalizerCfg
     ema_partial: EMACfg
     ce_coef: float

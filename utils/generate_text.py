@@ -32,6 +32,7 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
     print(yaml_cfg)
     print(osp.abspath('.'))
 
+    cfg.lightning_wrapper.sde_cfg.d = 5
     wrapped_model = instantiate(cfg.lightning_wrapper, _recursive_=False)
     ckpt_path = osp.join(exp_folder, ckpt_name)
 
