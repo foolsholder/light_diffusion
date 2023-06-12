@@ -18,3 +18,4 @@ class Config:
     every_n_epochs: int
     pretrained_path: str
     precision: str
+    monitor: str

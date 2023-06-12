@@ -225,7 +225,7 @@ class ContextualRTEDataset(Dataset):
             train: bool = True,
             max_length: int = 96,
     ):
-        super(ContextualQQPDataset, self).__init__()
+        super(ContextualRTEDataset, self).__init__()
 
         self.noisy_tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
         self.clean_tokenizer: T5TokenizerFast = T5TokenizerFast.from_pretrained('t5-base')

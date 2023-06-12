@@ -49,13 +49,15 @@ class BinaryClassification(SlavaContextualDenoising):
         sched_partial: Callable[[Any], LinearWarmupLR],
         ce_coef: float = 0,
         test_count: int = 11,
+        *args, **kwargs
     ) -> None:
         super().__init__(
-            noisy_enc_normalizer_cfg,
-            clean_enc_normalizer_cfg,
-            sde_cfg, optim_partial,
-            sched_partial,
-            ce_coef
+            noisy_enc_normalizer_cfg=noisy_enc_normalizer_cfg,
+            clean_enc_normalizer_cfg=clean_enc_normalizer_cfg,
+            sde_cfg=sde_cfg, optim_partial=optim_partial,
+            sched_partial=sched_partial,
+            ce_coef=ce_coef,
+            *args, **kwargs
         )
         noisy_tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
         encodings_yes: EncoderOutput = self.noisy_part_encoder.forward(

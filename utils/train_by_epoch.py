@@ -85,10 +85,11 @@ def main(cfg: Config):
         callbacks=[
             ModelCheckpoint(
                 dirpath=exp_folder,
-                filename='epoch_{epoch:d}',
+                monitor=cfg.monitor,
+                filename='{epoch:d}_{' + cfg.monitor + ':.4f}',
                 every_n_epochs=cfg.every_n_epochs,
-                save_top_k=-1,
-                auto_insert_metric_name=False,
+                save_top_k=1,
+                auto_insert_metric_name=True,
                 save_weights_only=False
             ),
             LearningRateMonitor(logging_interval='step'),
