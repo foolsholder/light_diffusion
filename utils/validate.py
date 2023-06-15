@@ -26,7 +26,7 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False):
     seed_everything(1337, workers=True)
 
     cfg: Config = OmegaConf.load(osp.join(exp_folder, 'config.yaml'))
-    cfg.lightning_wrapper.sde_cfg.d = 5
+    #cfg.lightning_wrapper.sde_cfg.d = 5
     yaml_cfg = OmegaConf.to_yaml(cfg)
     print(yaml_cfg)
     print(osp.abspath('.'))
@@ -69,9 +69,11 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False):
         datamodule=instantiate(cfg.datamodule, _recursive_=False)
     )[0]
     exp_name = Path(exp_folder).name
-    if not osp.exists(osp.join(os.environ['BASE_PATH'], 'metrics', exp_name)):
-        os.makedirs(osp.join(os.environ['BASE_PATH'], 'metrics', exp_name))
-    with open(osp.join(os.environ['BASE_PATH'], 'metrics', exp_name, ckpt_name), 'w') as fout:
+    target_dir = osp.join(os.environ['BASE_PATH'], 'metrics', exp_name)
+    if not osp.exists(target_dir):
+        os.makedirs(target_dir)
+    ckpt_stem = Path(ckpt_name).stem
+    with open(osp.join(target_dir, ckpt_stem + '.json'), 'w') as fout:
         json.dump(metrics, fout, indent=4)
 
 import argparse

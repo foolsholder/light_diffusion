@@ -1,1 +1,1 @@
-python3 utils/validate.py experiments/second_zero_voc2/step_10000.ckpt --ema
+python3 utils/generate_text.py experiments/sc_adamw_cosine_sd/step_200000.ckpt --count 64

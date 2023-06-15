@@ -56,6 +56,7 @@ class ContextualDenoising(L.LightningModule):
         self.noisy_part_encoder: BertLMHeadModel = BertLMHeadModel.from_pretrained(
             bert_cfg_name, enc_normalizer_cfg=noisy_enc_normalizer_cfg
         ).eval()
+        #self.noisy_part_encoder.restore_decoder()
 
         self.clean_part_encoder: T5EncoderModel = T5EncoderModel.from_pretrained(
             t5_cfg_name, enc_normalizer_cfg=clean_enc_normalizer_cfg

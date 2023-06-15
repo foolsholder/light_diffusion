@@ -13,12 +13,26 @@ from transformers.models.bert.modeling_bert import (
     BaseModelOutputWithPoolingAndCrossAttentions
 )
 from .typings import EncoderOutput
+import os
+import os.path as osp
 
 
 class BertLMHeadModel(HuggingFaceBertLMHeadModel):
     def __init__(self, config, enc_normalizer_cfg: EncNormalizerCfg):
         super().__init__(config)
         self.enc_normalizer: EncNormalizer = instantiate(enc_normalizer_cfg)
+        #self.restore_decoder()
+
+    def restore_decoder(self):
+        decoder_path = "data/new_slava_ckpt/decoder-wikipedia-128.pth"
+        self.cls.load_state_dict(
+            torch.load(
+                osp.join(
+                    os.environ['BASE_PATH'],
+                    decoder_path
+                ), map_location='cpu'
+            )["decoder"]
+        )
 
     def classify(
         self,

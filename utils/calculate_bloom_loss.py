@@ -55,8 +55,28 @@ def main(generated_text_folder_name: str, ckpt_name: str):
     total_loss: float = 0
     total_count: int = 0
     bar = tqdm(texts)
+    
+    def clear_text(text):
+        data = []
+        for l in text:
+            s = l.replace("..", "")
+            s = s.replace("[SEP]", "").replace("[CLS]", "")
+            s = s.replace("PAD", "").replace("UNK", "").replace("START", "").replace("END", "")
+            if not s:
+                data.append("")
+                continue
+            if s[0] == ".":
+                s = s[1:]
+            s = s.strip().lower()
+            data.append(s)
+        return data
+    
     for sent in bar:
-        sum_loss, num_toks = metric(sent["CONDITION"] + " " + sent["GENERATED"], reduce='sum')
+        cond = sent["CONDITION"]
+        gen = sent["GENERATED"]
+        joint = cond + " " + gen
+        joint = clear_text([joint])[0]
+        sum_loss, num_toks = metric(joint, reduce='sum')
         total_loss += sum_loss
         total_count += num_toks
         bar.set_description(f'bloom_loss: {total_loss / total_count:.4f}')

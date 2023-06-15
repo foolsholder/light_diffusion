@@ -89,7 +89,8 @@ def main(cfg: Config):
                 filename='{epoch:d}_{' + cfg.monitor + ':.4f}',
                 every_n_epochs=cfg.every_n_epochs,
                 save_top_k=1,
-                auto_insert_metric_name=True,
+                mode='max',
+                auto_insert_metric_name=False,
                 save_weights_only=False
             ),
             LearningRateMonitor(logging_interval='step'),
