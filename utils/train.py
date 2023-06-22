@@ -97,7 +97,7 @@ def main(cfg: Config):
         enable_checkpointing=True,
         gradient_clip_algorithm="norm",
         gradient_clip_val=cfg.grad_clip_norm,
-        precision='bf16-mixed',
+        precision=cfg.precision,
         accelerator='auto',
         strategy=strategy
     )

@@ -1,1 +1,1 @@
-python3 utils/validate.py experiments/second_zero_voc2/step_10000.ckpt --ema
+python3 utils/validate.py experiments/rte_pretrained_roberta_t5t/194_0.7726.ckpt --ema

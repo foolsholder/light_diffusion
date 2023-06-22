@@ -1,0 +1,5 @@
+_target_: "diffusion.LinearWarmupSecondZeroLR"
+_partial_: True
+secound_group_zero_epochs: 25000
+warmup_steps: 5000
+warmup_start_lr: 1e-6

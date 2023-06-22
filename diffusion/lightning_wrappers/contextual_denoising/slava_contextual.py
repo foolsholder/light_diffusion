@@ -39,6 +39,7 @@ from diffusion.dataset import EncNormalizer, enc_normalizer
 
 from .base_contextual import ContextualDenoising
 from diffusion.models.contextual_denoising.slava_estimator import SlavaEstimator, bert_config_slava
+from diffusion.utils import calc_group_grads_norm, calc_group_weights_norm
 
 
 class SlavaContextualDenoising(ContextualDenoising):
@@ -71,6 +72,56 @@ class SlavaContextualDenoising(ContextualDenoising):
                     missing_keys += [k]
             print(f'Missing keys: {", ".join(missing_keys)}')
             score_estimator.encoder.load_state_dict(new_state_dict, strict=False)
+            self.missing_keys = ['encoder.' + k for k in missing_keys]
+        else:
+            self.missing_keys: List[str] = []
 
         super().__init__(*args, **kwargs)
         self.score_estimator = score_estimator
+        self.noisy_part_encoder.restore_decoder()
+
+    def configure_optimizers(self) -> Any:
+        if len(self.missing_keys) == 0:
+            return super().configure_optimizers()
+
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in self.score_estimator.named_parameters() if n in self.missing_keys],
+            },
+            {
+                "params": [p for n, p in self.score_estimator.named_parameters() if n not in self.missing_keys],
+            },
+        ]
+
+        optim = self._optim_partial(params=optimizer_grouped_parameters)
+        sched = self._sched_partial(optimizer=optim)
+        return {
+            "optimizer": optim,
+            "lr_scheduler": {
+                "scheduler": sched,
+                "interval": "step"
+            }
+        }
+
+    def on_before_optimizer_step(self, *args, **kwargs) -> None:
+        if len(self.missing_keys) > 0:
+            #print(self.missing_keys)
+            missing_params = [p for n, p in self.score_estimator.named_parameters() if n in self.missing_keys]
+            #print(missing_params)
+            roberta_params = [p for n, p in self.score_estimator.named_parameters() if n not in self.missing_keys]
+            self.logger.log_metrics({
+                'grads_norm/missing': calc_group_grads_norm(missing_params),
+                'grads_norm/roberta': calc_group_grads_norm(roberta_params),
+            })
+        return super().on_before_optimizer_step(*args, **kwargs)
+
+    def optimizer_step(self, *args, **kwargs) -> None:
+        returns =  super().optimizer_step(*args, **kwargs)
+        if len(self.missing_keys) > 0:
+            missing_params = [p for n, p in self.score_estimator.named_parameters() if n in self.missing_keys]
+            roberta_params = [p for n, p in self.score_estimator.named_parameters() if n not in self.missing_keys]
+            self.logger.log_metrics({
+                'weights_norm/missing': calc_group_weights_norm(missing_params),
+                'weights_norm/roberta': calc_group_weights_norm(roberta_params),
+            })
+        return returns
