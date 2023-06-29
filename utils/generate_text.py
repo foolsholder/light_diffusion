@@ -60,6 +60,7 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
 
     datamodule: diffusion.SimpleDataModule = instantiate(cfg.datamodule, _recursive_=False)
     wrapped_model: diffusion.lightning_wrappers.contextual_denoising.ContextualDenoising
+    wrapped_model.noisy_part_encoder.restore_decoder()
 
     save_folder = osp.join('generated_texts', prefix_folder + osp.basename(exp_folder))
     if not osp.exists(save_folder):

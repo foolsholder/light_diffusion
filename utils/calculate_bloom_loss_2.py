@@ -153,25 +153,36 @@ def main(generated_text_folder_name: str, ckpt_name: str):
         texts: List[Dict[str, str]] = json.load(fin)
 
     device = 'cuda:0'
-    bloom_metric = BloomMetric(device)
+    #bloom_metric = BloomMetric(device)
+    bloom_cond_metric = BloomMetricConditional(device)
+    roberta_metric = RobertaMetric(device)
 
-    bloom_mean = MeanMetric()
+    #bloom_mean = MeanMetric()
+    bloom_cond_mean = MeanMetric()
+    roberta_mean = MeanMetric()
 
     total_loss: float = 0
     total_count: int = 0
     bar = tqdm(texts)
     for sent in bar:
-        sum_loss, num_toks = bloom_metric(sent["CONDITION"] + " " + sent["GENERATED"], reduce='sum')
-        bloom_mean.update(sum_loss / num_toks, num_toks)
+        #sum_loss, num_toks = bloom_metric(sent["CONDITION"] + " " + sent["GENERATED"], reduce='sum')
+        #bloom_mean.update(sum_loss / num_toks, num_toks)
 
-        total_loss += sum_loss
-        total_count += num_toks
-        bar.set_description(f'bloom_loss: {total_loss / total_count:.4f}')
+        #total_loss += sum_loss
+        #total_count += num_toks
+        #bar.set_description(f'bloom_loss: {total_loss / total_count:.4f}')
 
+        sum_loss, num_toks = bloom_cond_metric(sent["CONDITION"], sent["GENERATED"], reduce='sum')
+        bloom_cond_mean.update(sum_loss / num_toks, num_toks)
 
-    with open(osp.join(save_folder, Path(ckpt_name).stem + '1.json'), 'w') as fout:
+        sum_loss, num_toks = roberta_metric([sent["CONDITION"] + " " + sent["GENERATED"]], reduce='sum')
+        roberta_mean.update(sum_loss / num_toks, num_toks)
+
+    with open(osp.join(save_folder, Path(ckpt_name).stem + '.json'), 'w') as fout:
         json.dump({
-            "condition+generated": bloom_mean.compute().item(),
+            #"condition+generated": bloom_mean.compute().item(),
+            "generated": bloom_cond_mean.compute().item(),
+            "naturalness": roberta_mean.compute().item()
         }, fout, indent=4)
 
 import argparse
