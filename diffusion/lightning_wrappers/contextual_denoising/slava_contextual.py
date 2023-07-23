@@ -125,3 +125,50 @@ class SlavaContextualDenoising(ContextualDenoising):
                 'weights_norm/roberta': calc_group_weights_norm(roberta_params),
             })
         return returns
+
+
+class SlavaContextualDenoisingT5T(SlavaContextualDenoising):
+    def __init__(self, clean_enc_normalizer_cfg, *args, **kwargs) -> None:
+        super().__init__(*args, clean_enc_normalizer_cfg=clean_enc_normalizer_cfg, **kwargs)
+        t5_cfg_name = 't5-base'
+        self.clean_part_encoder: T5EncoderModel = T5EncoderModel.from_pretrained(
+            t5_cfg_name, enc_normalizer_cfg=clean_enc_normalizer_cfg
+        ).train()
+
+    def train(self, mode: bool = True):
+        self.score_estimator.train(mode)
+        self.clean_part_encoder.train(mode)
+        self.noisy_part_encoder.eval()
+
+    def configure_optimizers(self) -> Any:
+        optimizer_grouped_parameters = [
+            {
+                "params": self.score_estimator.parameters(),
+            },
+            {
+                "params": self.clean_part_encoder.parameters()
+            }
+        ]
+
+        optim = self._optim_partial(params=optimizer_grouped_parameters)
+        sched = self._sched_partial(optimizer=optim)
+        return {
+            "optimizer": optim,
+            "lr_scheduler": {
+                "scheduler": sched,
+                "interval": "step"
+            }
+        }
+
+    def on_before_optimizer_step(self, *args, **kwargs) -> None:
+        self.logger.log_metrics({
+            'grads_norm/t5_encoder': calc_group_grads_norm(self.clean_part_encoder.parameters())
+        })
+        return super().on_before_optimizer_step(*args, **kwargs)
+
+    def optimizer_step(self, *args, **kwargs) -> None:
+        returns =  super().optimizer_step(*args, **kwargs)
+        self.logger.log_metrics({
+            'weights_norm/t5_encoder': calc_group_weights_norm(self.clean_part_encoder.parameters()),
+        })
+        return returns

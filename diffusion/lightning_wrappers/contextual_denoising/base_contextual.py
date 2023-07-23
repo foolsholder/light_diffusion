@@ -77,6 +77,7 @@ class ContextualDenoising(L.LightningModule):
         self.ce_coef = ce_coef
 
         self.train_metric_to_log: Dict[str, Tensor] = Counter()
+        self.valid_metric_to_log: Dict[str, Tensor] = Counter()
 
     def download_ema_ckpt(self, ema_path):
         ema = ExponentialMovingAverage(
@@ -265,6 +266,11 @@ class ContextualDenoising(L.LightningModule):
         self.train_metric_to_log = Counter()
         return super().on_train_epoch_end()
 
+    def on_validation_epoch_end(self) -> None:
+        self.log_dict(self.compute_epoch_mean(self.valid_metric_to_log), is_train=False, sync_dist=True)
+        self.valid_metric_to_log = Counter()
+        return super().on_validation_epoch_end()
+
     def compute_epoch_mean(self, dct: Dict[str, Tensor]):
         count = dct.pop('count')
         dct_to_log: Dict[str, Tensor] = {}
@@ -282,6 +288,10 @@ class ContextualDenoising(L.LightningModule):
         self.add_to_dict(self.train_metric_to_log, outputs)
         return super().on_train_batch_end(outputs, batch, batch_idx)
 
+    def on_validation_batch_end(self, outputs: STEP_OUTPUT, batch: Any, batch_idx: int) -> None:
+        self.add_to_dict(self.valid_metric_to_log, outputs)
+        return super().on_validation_batch_end(outputs, batch, batch_idx)
+
     def log_dict(self, losses: Dict[str, Tensor],
                  is_train: bool = True, apply_suffix: bool = True,
                  *args, **kwargs):
@@ -290,8 +300,9 @@ class ContextualDenoising(L.LightningModule):
             losses = {key + f'/{suffix}': value for key, value in losses.items()}
         return super().log_dict(losses, *args, **kwargs)
 
-    def validation_step(self, *args: Any, **kwargs: Any) -> STEP_OUTPUT | None:
-        return super().validation_step(*args, **kwargs)
+    def validation_step(self, batch, *args: Any, **kwargs: Any) -> STEP_OUTPUT | None:
+        outputs = self.step_logic(batch)
+        return outputs
 
     def training_step(self, batch: Dict[str, Tensor], *args: Any, **kwargs: Any) -> STEP_OUTPUT:
         outputs = self.step_logic(batch)
@@ -299,10 +310,10 @@ class ContextualDenoising(L.LightningModule):
         return outputs
 
     def on_before_optimizer_step(self, *args, **kwargs) -> None:
-        self.logger.log_metrics({'model/grads_norm': calc_model_grads_norm(self.score_estimator)})
+        self.logger.log_metrics({'grads_norm/score_estimator': calc_model_grads_norm(self.score_estimator)})
         return super().on_before_optimizer_step(*args, **kwargs)
 
     def optimizer_step(self, *args, **kwargs) -> None:
         returns =  super().optimizer_step(*args, **kwargs)
-        self.logger.log_metrics({'model/weights_norm': calc_model_weights_norm(self.score_estimator)})
+        self.logger.log_metrics({'weights_norm/score_estimator': calc_model_weights_norm(self.score_estimator)})
         return returns

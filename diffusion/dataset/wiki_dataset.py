@@ -263,3 +263,50 @@ class ContextualRTEDataset(Dataset):
         result['labels'] = torch.LongTensor([label])[0]
 
         return result
+
+
+
+class ContextualARTDataset(Dataset):
+    def __init__(
+            self,
+            train: bool = True,
+            max_length: int = 64,
+    ):
+        super(ContextualARTDataset, self).__init__()
+
+        self.noisy_tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
+        self.clean_tokenizer: T5TokenizerFast = T5TokenizerFast.from_pretrained('t5-base')
+        self.max_length = max_length
+
+        self.dataset = load_dataset('GEM/ART', split='train' if train else 'validation')
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(
+            self,
+            index: int
+    ):
+        obj = self.dataset[index]
+        sentence = obj['observation_1'] + " " + obj['observation_2']
+        target = obj['target']
+        # cause parts were tokenized by bertTokenizer
+        clean_part_sentence = sentence
+
+        result: Dict[str, List[int]] = dict()
+        for sentence, prefix, tokenizer in zip(
+            [clean_part_sentence, target],
+            ['clean_', 'noisy_'],
+            [partial(self.clean_tokenizer, max_length=self.max_length),
+             partial(self.noisy_tokenizer, max_length=self.max_length)]
+        ):
+            tokenized: Dict[str, List[int]] = tokenizer(
+                sentence,
+                truncation=True,
+                padding="max_length"
+            )
+            for k, v in tokenized.items():
+                result[prefix + k] = torch.LongTensor(v)
+
+        return result
+
