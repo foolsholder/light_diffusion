@@ -19,7 +19,7 @@ class WikiDataset(Dataset):
             self,
             train: bool = True,
             max_length: int = 96,
-            pos_begin: float = 0.33,
+            pos_begin: float = 0.0,
             pos_end: float = 0.67
     ):
         super(WikiDataset, self).__init__()
@@ -27,11 +27,13 @@ class WikiDataset(Dataset):
         self.noisy_tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
         self.clean_tokenizer: T5TokenizerFast = T5TokenizerFast.from_pretrained('t5-base')
         self.max_length = max_length
-
+        self.dataset = load_dataset("Graphcore/wikipedia-bert-128", split='train')
+        self.dataset.remove_columns(["token_type_ids", "labels", "next_sentence_label"])
+        dt = self.dataset.train_test_split(test_size=0.001, seed=0)
         if train:
-            self.dataset = load_dataset("Graphcore/wikipedia-bert-128", split='train')
+            self.dataset = dt["train"]
         else:
-            self.dataset = []
+            self.dataset = dt["test"]
 
         self.pos_begin = pos_begin
         self.pos_end = pos_end

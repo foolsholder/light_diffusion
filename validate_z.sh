@@ -1,10 +1,4 @@
-#python3 utils/generate_text.py experiments/5k_second_zero_roberta_pretrain_sc_cos_adamw/step_100000.ckpt --ema --count 2048
-python3 utils/calculate_bloom_loss.py generated_texts/ema_5k_second_zero_roberta_pretrain_sc_cos_adamw/step_200000.json 
-python3 utils/calculate_bloom_loss_2.py generated_texts/ema_5k_second_zero_roberta_pretrain_sc_cos_adamw/step_200000.json #--ema --count 2048
-#python3 utils/generate_text.py experiments/5k_second_zero_roberta_pretrain_sc_cos_adamw/step_300000.ckpt --ema --count 2048
-
-
-#python3 utils/generate_text.py experiments/roberta_pretrain_sc_cos_adamw/step_100000.ckpt --ema --count 2048
+python3 utils/generate_text_gem.py experiments/art-t5-bert-t5t/step_400000.ckpt --ema --count 64
 #python3 utils/generate_text.py experiments/roberta_pretrain_sc_cos_adamw/step_200000.ckpt --ema --count 2048
 #python3 utils/generate_text.py experiments/roberta_pretrain_sc_cos_adamw/step_300000.ckpt --ema --count 2048
 #python3 utils/generate_text.py experiments/roberta_pretrain_sc_cos_adamw/step_400000.ckpt --ema --count 2048

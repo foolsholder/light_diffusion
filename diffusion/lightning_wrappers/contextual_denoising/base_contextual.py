@@ -132,7 +132,9 @@ class ContextualDenoising(L.LightningModule):
         # x0
 
         cross_attn_mask = batch['clean_attention_mask']
-        attn_mask = batch['noisy_attention_mask']
+        attn_mask = torch.ones_like(
+            batch['noisy_attention_mask']
+        )
 
         time_t = torch.rand(batch_size, device=normed_ddpm_target.device)
         marg_forward = self.sde.marginal_forward(normed_ddpm_target, time_t)
@@ -185,7 +187,9 @@ class ContextualDenoising(L.LightningModule):
     def step_logic(self, batch: Dict[str, Tensor]) -> STEP_OUTPUT:
         outputs = self.forward(batch)
 
-        attn_mask = batch['noisy_attention_mask']
+        attn_mask = torch.ones_like(
+            batch['noisy_attention_mask']
+        )
         input_ids = batch['noisy_input_ids']
 
         pred_x_0 = outputs['x_0']
@@ -220,7 +224,9 @@ class ContextualDenoising(L.LightningModule):
         self.eval()
         to_clean_part, to_noise_part = self.split_batch(batch)
         clean_part: EncoderOutput = self.clean_part_encoder.forward(**to_clean_part)
-        noisy_part_attention_mask = to_noise_part['attention_mask']
+        noisy_part_attention_mask = torch.ones_like(
+            batch['noisy_attention_mask']
+        )
         noisy_part_pred_encodings = self.generate_encodings(
             shape=noisy_part_attention_mask.shape + (clean_part.normed.shape[-1],),
             cross_encodings=clean_part.normed,

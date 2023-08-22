@@ -3,12 +3,12 @@ _recursive_: False
 
 train_dataset_cfg:
   _target_: "diffusion.dataset.wiki_dataset.WikiDataset"
-  max_length: 96
+  max_length: 64
   train: True
 
 valid_dataset_cfg:
   _target_: "diffusion.dataset.wiki_dataset.WikiDataset"
-  max_length: 96
+  max_length: 64
   train: False
 
 train_dataloader_cfg:
