@@ -103,19 +103,27 @@ def main(cfg: Config):
     )
     datamodule: diffusion.SimpleDataModule = instantiate(cfg.datamodule, _recursive_=False)
     datamodule.setup()
+    
+    
+    resume_path = None
+    if cfg.resume_path != 'None':
+        resume_path = cfg.resume_path
+    
     if len(datamodule.valid_dataset) > 0:
         trainer.fit(
             wrapped_model,
-            datamodule=datamodule
+            datamodule=datamodule,
+            ckpt_path=resume_path
         )
     else:
         trainer.fit(
             wrapped_model,
-            train_dataloaders=datamodule.train_dataloader()
+            train_dataloaders=datamodule.train_dataloader(),
+            ckpt_path=resume_path
         )
 
 if __name__ == '__main__':
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
-    os.environ['BASE_PATH'] = './'
+    os.environ['BASE_PATH'] = osp.abspath('./')
     os.environ['EXP_PATH'] = osp.abspath('experiments/')
     main()

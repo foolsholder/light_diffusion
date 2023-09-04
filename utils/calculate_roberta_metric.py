@@ -64,19 +64,17 @@ class BloomMetricConditional:
 
         inputs = dict_to_device(inputs, self.device)
         outputs = self.model(**inputs, labels=inputs["input_ids"])
-        # [1; SEQ_LEN; HIDDEN_DIM]
 
         losses = cross_entropy(
             input=outputs.logits.reshape(-1, outputs.logits.shape[-1])[:-1],
             target=inputs["input_ids"].reshape(-1)[1:],
             reduce=False,
         )
-        # [1; SEQ_LEN]
-        losses = losses[-torch.sum(inputs_gen["attention_mask"]).int().item():]
+        losses = losses[-torch.sum(inputs_gen["attention_mask"]).item():]
         num_tokens = losses.shape[0]
         loss = torch.mean(losses)
 
-        #assert num_tokens == torch.sum(inputs_gen["attention_mask"]).int().item()
+        assert num_tokens == torch.sum(inputs_gen["attention_mask"]).item()
 
         if reduce == "sum":
             return loss.item() * num_tokens, num_tokens
@@ -137,7 +135,7 @@ class RobertaMetric:
         input = dict_to_device(input, self.device)
         output = self.model(**input)
         probs = torch.softmax(output.logits, -1)[:, 1]
-        naturalness = torch.mean((probs.round() == 1) * 1.)
+        naturalness = torch.mean(probs)
         return naturalness.item(), 1
 
 
@@ -155,25 +153,23 @@ def main(generated_text_folder_name: str, ckpt_name: str):
         texts: List[Dict[str, str]] = json.load(fin)
 
     device = 'cuda:0'
-    bloom_metric = BloomMetricConditional(device)
 
-    bloom_mean = MeanMetric()
+    roberta_metric = RobertaMetric()
 
-    total_loss: float = 0
-    total_count: int = 0
+    total_loss2: float = 0
+    total_count2: int = 0
     bar = tqdm(texts)
     for sent in bar:
-        sum_loss, num_toks = bloom_metric(sent["CONDITION"], sent["GENERATED"], reduce='sum')
-        bloom_mean.update(sum_loss / num_toks, num_toks)
+        sum_loss, _ = roberta_metric([sent["GENERATED"]])
+        # sum_loss, _ = roberta_metric([sent["CONDITION"] + " " + sent["GENERATED"]])
+        total_loss2 += sum_loss
+        total_count2 += 1
+        bar.set_description(f'roberta_metric: {total_loss2 / total_count2:.4f}')
 
-        total_loss += sum_loss
-        total_count += num_toks
-        bar.set_description(f'bloom_loss: {total_loss / total_count:.4f}')
 
-
-    with open(osp.join(save_folder, Path(ckpt_name).stem + '1.json'), 'w') as fout:
+    with open(osp.join(save_folder, Path(ckpt_name).stem + '_rob.json'), 'w') as fout:
         json.dump({
-            "condition+generated": bloom_mean.compute().item(),
+            "roberta_metric": total_loss2 / total_count2
         }, fout, indent=4)
 
 import argparse

@@ -118,6 +118,6 @@ def main(cfg: Config):
 
 if __name__ == '__main__':
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
-    os.environ['BASE_PATH'] = './'
+    os.environ['BASE_PATH'] = osp.abspath('./')
     os.environ['EXP_PATH'] = osp.abspath('experiments/')
     main()
