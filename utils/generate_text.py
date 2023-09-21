@@ -24,11 +24,13 @@ import diffusion
 
 
 def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
-         count: int = 64, batch_size: int = 64):
+         count: int = 64, batch_size: int = 64,
+         N: int = 200, ode: bool = False, empty: bool = False):
     seed_everything(1337, workers=True)
 
     cfg = OmegaConf.load(osp.join(exp_folder, 'config.yaml'))
-    cfg.lightning_wrapper.sde_cfg.N = 200
+    cfg.lightning_wrapper.sde_cfg.N = N
+    cfg.lightning_wrapper.sde_cfg.ode_sampling = ode
 
     yaml_cfg = OmegaConf.to_yaml(cfg)
     print(yaml_cfg)
@@ -67,6 +69,10 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
     if not osp.exists(save_folder):
         os.makedirs(save_folder)
     datamodule.setup()
+
+    if empty:    
+        datamodule.valid_dataset.setup_empty_cond(True)
+
     loader: DataLoader = datamodule.val_dataloader()[0]
     device = 'cuda:0'
     iter_loader = iter(loader)
@@ -112,7 +118,13 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
                     'GT': gt
                 }
             ]
-    with open(osp.join(save_folder, Path(ckpt_name).stem + '.json'), 'w') as fout:
+    suffix = f'_{N}.json'
+    if ode:
+        suffix = '_ode' + suffix
+    if empty:
+        suffix = '_empty' + suffix
+
+    with open(osp.join(save_folder, Path(ckpt_name).stem + suffix), 'w') as fout:
         json.dump(to_json_format, fout, indent=4)
 
 import argparse
@@ -121,6 +133,9 @@ def parse_args():
     parser.add_argument('path_to_ckpt', type=str)
     parser.add_argument('--ema', default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument('--count', default=64, type=int)
+    parser.add_argument('--N', default=200, type=int)
+    parser.add_argument('--ode', default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument('--empty', default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument('--batch_size', default=64, type=int)
     return parser.parse_args()
 
@@ -129,4 +144,4 @@ if __name__ == '__main__':
     os.environ['BASE_PATH'] = osp.abspath('./')
     args = parse_args()
     path = Path(args.path_to_ckpt)
-    main(path.parent, path.name, args.ema, args.count, args.batch_size)
+    main(path.parent, path.name, args.ema, args.count, args.batch_size, args.N, args.ode, args.empty)

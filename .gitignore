@@ -16,3 +16,6 @@ stats
 data
 generated_texts
 metrics*
+*.pth
+.ipynb_checkpoints
+*.png

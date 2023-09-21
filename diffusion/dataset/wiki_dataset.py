@@ -20,7 +20,8 @@ class WikiDataset(Dataset):
             train: bool = True,
             max_length: int = 96,
             pos_begin: float = 0.0,
-            pos_end: float = 0.67
+            pos_end: float = 0.67,
+            empty_cond: bool = False
     ):
         super(WikiDataset, self).__init__()
 
@@ -37,6 +38,10 @@ class WikiDataset(Dataset):
 
         self.pos_begin = pos_begin
         self.pos_end = pos_end
+        self.empty_cond = empty_cond
+        
+    def setup_empty_cond(self, flag: bool = True):
+        self.empty_cond = flag
 
     def __len__(self) -> int:
         return len(self.dataset)
@@ -57,6 +62,8 @@ class WikiDataset(Dataset):
                 np.random.rand() * (self.pos_end - self.pos_begin) + self.pos_begin
             ) * elem_count
         )
+        if self.empty_cond:
+            delimeter_pos = 0
         clean_part = input_ids[:delimeter_pos]
         # cause parts were tokenized by bertTokenizer
         clean_part_sentence = self.noisy_tokenizer.decode(clean_part, skip_special_tokens=True)
