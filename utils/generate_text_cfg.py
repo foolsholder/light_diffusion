@@ -25,7 +25,7 @@ import diffusion
 
 def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
          count: int = 64, batch_size: int = 64,
-         N: int = 200, ode: bool = False, empty: bool = False):
+         N: int = 200, ode: bool = False, empty: bool = False, w: float = 1.0):
     seed_everything(1337, workers=True)
 
     cfg = OmegaConf.load(osp.join(exp_folder, 'config.yaml'))
@@ -70,7 +70,7 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
         os.makedirs(save_folder)
     datamodule.setup()
 
-    if empty:    
+    if empty:
         datamodule.valid_dataset.setup_empty_cond(True)
 
     loader: DataLoader = datamodule.val_dataloader()[0]
@@ -85,16 +85,7 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
         batch = next(iter_loader)
         batch = dict_to_device(batch, device)
 
-        """
-        if empty:
-            to_clean_part, to_noise_part = wrapped_model.split_batch(batch)
-            clean_part = wrapped_model.clean_part_encoder.forward(**to_clean_part)
-            to_clean_part['encs'] = clean_part.normed
-            torch.save(to_clean_part, 'data/empty_cond_normed.pth')
-            from sys import exit
-            exit(0)"""
-
-        generated_ids, _ = wrapped_model.generate_text(batch)
+        generated_ids = wrapped_model.generate_text_cfg(batch, w=w)
 
         dataset: diffusion.dataset.wiki_dataset.WikiDataset = loader.dataset
         tokenizer = dataset.noisy_tokenizer
@@ -127,7 +118,7 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
                     'GT': gt
                 }
             ]
-    suffix = f'_{N}.json'
+    suffix = f'_{N}_cfg_{w}.json'
     if ode:
         suffix = '_ode' + suffix
     if empty:
@@ -143,6 +134,7 @@ def parse_args():
     parser.add_argument('--ema', default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument('--count', default=64, type=int)
     parser.add_argument('--N', default=200, type=int)
+    parser.add_argument('--w', default=1.0, type=float)
     parser.add_argument('--ode', default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument('--empty', default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument('--batch_size', default=64, type=int)
@@ -153,4 +145,4 @@ if __name__ == '__main__':
     os.environ['BASE_PATH'] = osp.abspath('./')
     args = parse_args()
     path = Path(args.path_to_ckpt)
-    main(path.parent, path.name, args.ema, args.count, args.batch_size, args.N, args.ode, args.empty)
+    main(path.parent, path.name, args.ema, args.count, args.batch_size, args.N, args.ode, args.empty, args.w)

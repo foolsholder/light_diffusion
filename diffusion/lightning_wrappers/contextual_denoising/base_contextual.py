@@ -10,6 +10,7 @@ from typing import Any, Optional, Dict, List, Union, Callable, Any, Tuple
 from hydra.utils import instantiate
 import os
 import os.path as osp
+import numpy as np
 from transformers import BertTokenizerFast, BertConfig, T5TokenizerFast, T5Config
 from torchmetrics import Accuracy
 import logging
@@ -220,7 +221,7 @@ class ContextualDenoising(L.LightningModule):
         }
 
     @torch.no_grad()
-    def generate_text(self, batch: Dict[str, Tensor]):
+    def generate_text(self, batch: Dict[str, Tensor], init_x: Optional[Tensor] = None):
         self.eval()
         to_clean_part, to_noise_part = self.split_batch(batch)
         clean_part: EncoderOutput = self.clean_part_encoder.forward(**to_clean_part)
@@ -232,11 +233,158 @@ class ContextualDenoising(L.LightningModule):
             cross_encodings=clean_part.normed,
             cross_attention_mask=to_clean_part['attention_mask'],
             attn_mask=noisy_part_attention_mask,
-            verbose=True
+            verbose=True,
+            init_x=init_x
+        )
+        logits = self.noisy_part_encoder.classify(normed=noisy_part_pred_encodings)
+        text_labels = torch.argmax(logits, dim=-1)
+        return text_labels, noisy_part_pred_encodings
+    
+    @torch.no_grad()
+    def generate_text_cfg(self, batch: Dict[str, Tensor], init_x: Optional[Tensor] = None, w: float = 0):
+        self.eval()
+        to_clean_part, to_noise_part = self.split_batch(batch)
+        clean_part: EncoderOutput = self.clean_part_encoder.forward(**to_clean_part)
+        noisy_part_attention_mask = torch.ones_like(
+            batch['noisy_attention_mask']
+        )
+        noisy_part_pred_encodings = self.generate_encodings_cfg(
+            shape=noisy_part_attention_mask.shape + (clean_part.normed.shape[-1],),
+            cross_encodings=clean_part.normed,
+            cross_attention_mask=to_clean_part['attention_mask'],
+            attn_mask=noisy_part_attention_mask,
+            verbose=True,
+            init_x=init_x,
+            w=w
         )
         logits = self.noisy_part_encoder.classify(normed=noisy_part_pred_encodings)
         text_labels = torch.argmax(logits, dim=-1)
         return text_labels
+
+    torch.no_grad()
+    def ode_forward_dynamic(
+        self,
+        batch: Dict[str, Tensor],
+    ):
+        assert self.sde.ode_sampling is True
+        to_clean_part, to_noise_part = self.split_batch(batch)
+
+        clean_part: EncoderOutput = self.clean_part_encoder.forward(**to_clean_part)
+        noisy_part: EncoderOutput = self.noisy_part_encoder.forward(**to_noise_part)
+        
+        noisy_part_attention_mask = torch.ones_like(
+            batch['noisy_attention_mask']
+        )
+        
+        shape = noisy_part_attention_mask.shape + (clean_part.normed.shape[-1],)
+        cross_encodings = clean_part.normed
+        device = cross_encodings.device
+        
+        target_encodings = noisy_part.normed
+        
+        cross_attention_mask = to_clean_part['attention_mask']
+        attn_mask = noisy_part_attention_mask
+
+        score_call = partial(
+            self.score_estimator.forward,
+            cross_attention_mask=cross_attention_mask,
+            cross_encodings=cross_encodings
+        )
+        verbose = True
+        
+        prefix_time = 0.001
+        batch_size = target_encodings.shape[0]
+        input_t = torch.ones(batch_size, device=device) * prefix_time
+        marg_forward = self.sde.marginal_forward(target_encodings, input_t)
+        target_encodings = marg_forward['mean']
+        prev_t = 0
+        x_t = target_encodings
+
+        timesteps = torch.linspace(
+            0.001,
+            self.sde.T,
+            self.sde.N,
+            device=device
+        )
+        rang = trange if verbose else range
+
+        for idx in rang(self.sde.N):
+            t = timesteps[idx]
+            input_t = t * torch.ones(shape[0], device=device)
+            
+            dt = t - prev_t
+            prev_t = t
+            with torch.no_grad():
+                rsde_params = self.solver.rsde.sde(score_call, x_t, input_t, attn_mask)
+            
+            drift = rsde_params['drift']
+            # return rsde_params
+            
+            x_t = x_t + drift * dt
+    
+        return x_t, target_encodings
+
+    def generate_encodings_cfg(
+            self,
+            shape: Tuple[int],
+            cross_encodings: FloatTensor,
+            cross_attention_mask: FloatTensor,
+            attn_mask: Optional[torch.Tensor] = None,
+            verbose: bool = False,
+            init_x: Optional[torch.Tensor] = None,
+            w: float = 0
+    ) -> torch.Tensor:
+        device = cross_encodings.device
+        if attn_mask is None:
+            attn_mask = torch.ones(shape[:-1], device=device)
+        score_call = partial(
+            self.score_estimator.forward,
+            cross_attention_mask=cross_attention_mask,
+            cross_encodings=cross_encodings
+        )
+        cross_encodings_uncond = torch.load(
+            'data/cross_encodings_empty.pth', map_location=device
+        )
+        cross_encodings_uncond = torch.tile(cross_encodings_uncond, (shape[0], 1, 1))
+        cross_attention_mask_uncond = torch.ones((shape[0], 1), device=device)
+        score_uncond_call = partial(
+            self.score_estimator.forward,
+            cross_attention_mask=cross_attention_mask_uncond,
+            cross_encodings=cross_encodings_uncond
+        )
+        with torch.no_grad():
+            x_t = x_mean = self.sde.prior_sampling(shape).to(device) if init_x is None else init_x.to(device)
+            timesteps = torch.linspace(self.sde.T, self.sde.T / self.sde.N, self.sde.N, device=device)
+            rang = trange if verbose else range
+
+            for idx in rang(self.sde.N):
+                t = timesteps[idx]
+                input_t = t * torch.ones(shape[0], device=device)
+                
+                dt = -1. / self.sde.N
+                z = torch.randn_like(x_t)
+                
+                sde_params = self.sde.sde(x_t, input_t)
+                drift_par, diffusion = sde_params['drift'], sde_params['diffusion']  # -1/2 * beta * x_t, sqrt(beta)
+
+                scores_cond = self.sde.calc_score(score_call, x_t, input_t, attn_mask=attn_mask)
+                score_cond = scores_cond['score']
+                scores_uncond = self.sde.calc_score(score_uncond_call, x_t, input_t, attn_mask=attn_mask)
+                score_uncond = scores_uncond['score']
+                score = score_cond + w * (score_cond - score_uncond)
+                
+                drift = drift_par - diffusion[:, None, None] ** 2 * score * (0.5 if self.sde.ode_sampling else 1.)
+                # Set the diffusion function to zero for ODEs.
+                diffusion = 0. if self.sde.ode_sampling else diffusion
+                
+                x_mean = x_t + drift * dt
+                
+                if not self.sde.ode_sampling:
+                    x_t = x_mean + diffusion[:, None, None] * np.sqrt(-dt) * z
+                else:
+                    x_t = x_mean
+                
+        return x_mean
 
     def generate_encodings(
             self,
@@ -244,7 +392,8 @@ class ContextualDenoising(L.LightningModule):
             cross_encodings: FloatTensor,
             cross_attention_mask: FloatTensor,
             attn_mask: Optional[torch.Tensor] = None,
-            verbose: bool = False
+            verbose: bool = False,
+            init_x: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         device = cross_encodings.device
         if attn_mask is None:
@@ -255,7 +404,7 @@ class ContextualDenoising(L.LightningModule):
             cross_encodings=cross_encodings
         )
         with torch.no_grad():
-            x_t = x_mean = self.sde.prior_sampling(shape).to(device)
+            x_t = x_mean = self.sde.prior_sampling(shape).to(device) if init_x is None else init_x.to(device)
             timesteps = torch.linspace(self.sde.T, self.sde.T / self.sde.N, self.sde.N, device=device)
             rang = trange if verbose else range
 

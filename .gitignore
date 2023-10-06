@@ -19,3 +19,4 @@ metrics*
 *.pth
 .ipynb_checkpoints
 *.png
+notebooks/interpol_*
