@@ -50,7 +50,7 @@ class BertSelfOutput(nn.Module):
         hidden_states = self.LayerNorm(hidden_states)
         beta_mean, gamma_std, alpha_scale = self.beta_gamma_alpha_adaLN(cond_emb).chunk(3, dim=1)
         # [BS; H_DIM]
-        hidden_states = hidden_states * (1 + gamma_std[:, None]) * beta_mean[:, None]
+        hidden_states = hidden_states * (1 + gamma_std[:, None]) + beta_mean[:, None]
 
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states) * alpha_scale[:, None]
@@ -111,7 +111,7 @@ class BertAttention(nn.Module):
         hidden_states = self.LayerNorm(hidden_states)
         beta_mean, gamma_std, alpha_scale = self.beta_gamma_alpha_adaLN(cond_emb).chunk(3, dim=1)
         # [BS; H_DIM]
-        hidden_states = hidden_states * (1 + gamma_std[:, None]) * beta_mean[:, None]
+        hidden_states = hidden_states * (1 + gamma_std[:, None]) + beta_mean[:, None]
 
         self_outputs = self.self(
             hidden_states,
@@ -152,7 +152,7 @@ class BertOutput(nn.Module):
         hidden_states = self.LayerNorm(hidden_states)
         beta_mean, gamma_std, alpha_scale = self.beta_gamma_alpha_adaLN(cond_emb).chunk(3, dim=1)
         # [BS; H_DIM]
-        hidden_states = hidden_states * (1 + gamma_std[:, None]) * beta_mean[:, None]
+        hidden_states = hidden_states * (1 + gamma_std[:, None]) + beta_mean[:, None]
 
         hidden_states = self.intermediate(hidden_states)
         hidden_states = self.dense(hidden_states)
