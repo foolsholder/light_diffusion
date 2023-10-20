@@ -43,6 +43,8 @@ class BertSelfOutput(nn.Module):
             nn.SiLU(),
             nn.Linear(config.hidden_size, config.hidden_size * 3)
         )
+        nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].weight, 0)
+        nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].bias, 0)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states: torch.Tensor, cond_emb: torch.Tensor) -> torch.Tensor:
@@ -72,6 +74,8 @@ class BertAttention(nn.Module):
             nn.SiLU(),
             nn.Linear(config.hidden_size, config.hidden_size * 3)
         )
+        nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].weight, 0)
+        nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].bias, 0)
 
         self.self = BertSelfAttention(config, position_embedding_type=position_embedding_type)
         self.output = BertSelfOutput(config)
@@ -145,6 +149,8 @@ class BertOutput(nn.Module):
             nn.SiLU(),
             nn.Linear(config.hidden_size, config.hidden_size * 3)
         )
+        nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].weight, 0)
+        nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].bias, 0)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states: torch.Tensor, cond_emb: torch.Tensor) -> torch.Tensor:
