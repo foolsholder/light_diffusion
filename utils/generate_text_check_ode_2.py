@@ -22,15 +22,17 @@ from tqdm.auto import trange
 from diffusion import Config
 import diffusion
 
+from torchmetrics import MeanSquaredError
+
 
 def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
          count: int = 64, batch_size: int = 64,
-         N: int = 200, ode: bool = False, empty: bool = False):
+         N: int = 200, empty: bool = False):
     seed_everything(1337, workers=True)
 
     cfg = OmegaConf.load(osp.join(exp_folder, 'config.yaml'))
     cfg.lightning_wrapper.sde_cfg.N = N
-    cfg.lightning_wrapper.sde_cfg.ode_sampling = ode
+    cfg.lightning_wrapper.sde_cfg.ode_sampling = True
 
     yaml_cfg = OmegaConf.to_yaml(cfg)
     print(yaml_cfg)
@@ -81,20 +83,16 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
     generated_text = []
     gt_text = []
     conditions = []
+    
+    mse_metric = MeanSquaredError().to(device)
+    
     for _ in trange(0, count, batch_size):
         batch = next(iter_loader)
         batch = dict_to_device(batch, device)
 
-        """
-        if empty:
-            to_clean_part, to_noise_part = wrapped_model.split_batch(batch)
-            clean_part = wrapped_model.clean_part_encoder.forward(**to_clean_part)
-            to_clean_part['encs'] = clean_part.normed
-            torch.save(to_clean_part, 'data/empty_cond_normed.pth')
-            from sys import exit
-            exit(0)"""
-
-        generated_ids, _ = wrapped_model.generate_text(batch)
+        latents, true_normed_x0 = wrapped_model.ode_forward_dynamic(batch)
+        generated_ids, gen_normed_x0 = wrapped_model.generate_text(batch, init_x=latents)
+        mse_metric.update(gen_normed_x0, true_normed_x0)
 
         dataset: diffusion.dataset.wiki_dataset.WikiDataset = loader.dataset
         tokenizer = dataset.noisy_tokenizer
@@ -127,14 +125,17 @@ def main(exp_folder: str, ckpt_name: str, use_ema: bool = False,
                     'GT': gt
                 }
             ]
-    suffix = f'_{N}.json'
-    if ode:
-        suffix = '_ode' + suffix
+    suffix = f'_restore_ode_{N}.json'
     if empty:
         suffix = '_empty' + suffix
 
     with open(osp.join(save_folder, Path(ckpt_name).stem + suffix), 'w') as fout:
         json.dump(to_json_format, fout, indent=4)
+    if False:
+        with open(osp.join(save_folder, Path(ckpt_name).stem + suffix), 'w') as fout:
+            json.dump({"mse": float(mse_metric.compute().detach().cpu().item()), "texts": to_json_format}, fout, indent=4)
+    print(f"MSE {N}:",  mse_metric.compute())
+
 
 import argparse
 def parse_args():
@@ -143,7 +144,6 @@ def parse_args():
     parser.add_argument('--ema', default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument('--count', default=64, type=int)
     parser.add_argument('--N', default=200, type=int)
-    parser.add_argument('--ode', default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument('--empty', default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument('--batch_size', default=64, type=int)
     return parser.parse_args()
@@ -153,4 +153,4 @@ if __name__ == '__main__':
     os.environ['BASE_PATH'] = osp.abspath('./')
     args = parse_args()
     path = Path(args.path_to_ckpt)
-    main(path.parent, path.name, args.ema, args.count, args.batch_size, args.N, args.ode, args.empty)
+    main(path.parent, path.name, args.ema, args.count, args.batch_size, args.N, args.empty)
