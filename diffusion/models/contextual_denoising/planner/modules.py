@@ -30,53 +30,43 @@ bert_config_slava = BertConfig(**{
 })
 
 
-
 class BertSelfOutput(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+
         self.LayerNorm = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps,
+            config.hidden_size,
+            eps=config.layer_norm_eps,
             elementwise_affine=False
         )
         self.beta_gamma_alpha_adaLN = nn.Sequential(
             nn.SiLU(),
-            nn.Linear(config.hidden_size, config.hidden_size * 3)
+            nn.Linear(config.hidden_size, config.hidden_size * 2)
         )
         nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].weight, 0)
         nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].bias, 0)
+
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, hidden_states: torch.Tensor, cond_emb: torch.Tensor) -> torch.Tensor:
-        input_states = hidden_states
-        hidden_states = self.LayerNorm(hidden_states)
-        beta_mean, gamma_std, alpha_scale = self.beta_gamma_alpha_adaLN(cond_emb).chunk(3, dim=1)
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        input_tensor: torch.Tensor,
+        cond_emb: torch.Tensor
+    ) -> torch.Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        beta_mean, gamma_std = self.beta_gamma_alpha_adaLN(cond_emb).chunk(2, dim=1)
         # [BS; H_DIM]
         hidden_states = hidden_states * (1 + gamma_std[:, None]) + beta_mean[:, None]
-
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.dropout(hidden_states) * alpha_scale[:, None]
-
-        hidden_states = hidden_states + input_states
-
         return hidden_states
 
 
 class BertAttention(nn.Module):
     def __init__(self, config, position_embedding_type=None):
         super().__init__()
-
-        self.LayerNorm = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps,
-            elementwise_affine=False
-        )
-        self.beta_gamma_alpha_adaLN = nn.Sequential(
-            nn.SiLU(),
-            nn.Linear(config.hidden_size, config.hidden_size * 3)
-        )
-        nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].weight, 0)
-        nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].bias, 0)
-
         self.self = BertSelfAttention(config, position_embedding_type=position_embedding_type)
         self.output = BertSelfOutput(config)
         self.pruned_heads = set()
@@ -92,6 +82,7 @@ class BertAttention(nn.Module):
         self.self.query = prune_linear_layer(self.self.query, index)
         self.self.key = prune_linear_layer(self.self.key, index)
         self.self.value = prune_linear_layer(self.self.value, index)
+        self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
 
         # Update hyper params and store pruned heads
         self.self.num_attention_heads = self.self.num_attention_heads - len(heads)
@@ -109,14 +100,6 @@ class BertAttention(nn.Module):
         output_attentions: Optional[bool] = False,
         time_emb: Optional[torch.FloatTensor] = None,
     ) -> Tuple[torch.Tensor]:
-        input_states = hidden_states
-        cond_emb = time_emb
-
-        hidden_states = self.LayerNorm(hidden_states)
-        beta_mean, gamma_std, alpha_scale = self.beta_gamma_alpha_adaLN(cond_emb).chunk(3, dim=1)
-        # [BS; H_DIM]
-        hidden_states = hidden_states * (1 + gamma_std[:, None]) + beta_mean[:, None]
-
         self_outputs = self.self(
             hidden_states,
             attention_mask,
@@ -126,46 +109,36 @@ class BertAttention(nn.Module):
             past_key_value,
             output_attentions,
         )
-        attention_output = self_outputs[0]
-        result = attention_output * alpha_scale[:, None]
-        result = input_states + attention_output
-
-        result = self.output(result, cond_emb)
-        return (result,)
+        attention_output = self.output(self_outputs[0], hidden_states, time_emb)
+        outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
+        return outputs
 
 
 class BertOutput(nn.Module):
     def __init__(self, config):
         super().__init__()
-
-        self.intermediate = BertIntermediate(config)
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
-
         self.LayerNorm = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps,
+            config.hidden_size,
+            eps=config.layer_norm_eps,
             elementwise_affine=False
         )
         self.beta_gamma_alpha_adaLN = nn.Sequential(
             nn.SiLU(),
-            nn.Linear(config.hidden_size, config.hidden_size * 3)
+            nn.Linear(config.hidden_size, config.hidden_size * 2)
         )
         nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].weight, 0)
         nn.init.constant_(self.beta_gamma_alpha_adaLN[-1].bias, 0)
+
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, hidden_states: torch.Tensor, cond_emb: torch.Tensor) -> torch.Tensor:
-        input_states = hidden_states
-        hidden_states = self.LayerNorm(hidden_states)
-        beta_mean, gamma_std, alpha_scale = self.beta_gamma_alpha_adaLN(cond_emb).chunk(3, dim=1)
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor, cond_emb: torch.Tensor) -> torch.Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        beta_mean, gamma_std = self.beta_gamma_alpha_adaLN(cond_emb).chunk(2, dim=1)
         # [BS; H_DIM]
         hidden_states = hidden_states * (1 + gamma_std[:, None]) + beta_mean[:, None]
-
-        hidden_states = self.intermediate(hidden_states)
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.dropout(hidden_states) * alpha_scale[:, None]
-
-        hidden_states = hidden_states + input_states
-
         return hidden_states
 
 
@@ -177,9 +150,9 @@ class BertBlock(nn.Module):
         self.seq_len_dim = 1
         self.attention = BertAttention(config)
         self.is_decoder = config.is_decoder
-        assert self.is_decoder is True, "NE DECODER, BRAT, POCHEMU??"
         if self.is_decoder:
             self.crossattention = BertAttention(config, position_embedding_type="absolute")
+        self.intermediate = BertIntermediate(config)
         self.output = BertOutput(config)
 
     def forward(
@@ -209,15 +182,16 @@ class BertBlock(nn.Module):
             attention_output = cross_attention_outputs[0]
 
         outputs = apply_chunking_to_forward(
-            self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim,
+            self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, 
             (attention_output, time_emb)
         )
 
         return outputs
 
-    def feed_forward_chunk(self, inp_for_output_layer):
-        hidden_states, time_t = inp_for_output_layer
-        layer_output = self.output.forward(hidden_states, time_t)
+    def feed_forward_chunk(self, attention_output):
+        attention_output, time_emb = attention_output
+        intermediate_output = self.intermediate(attention_output)
+        layer_output = self.output(intermediate_output, attention_output, time_emb)
         return layer_output
 
 
