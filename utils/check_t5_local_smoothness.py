@@ -53,39 +53,41 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     for param in model.parameters():
         param.requires_grad = False
     model.eval().to(device)
-    metric = BLEUScore().to(device)
 
     save_folder = osp.join('generated_texts', "local_smoothness")
     if not osp.exists(save_folder):
         os.makedirs(save_folder)
-    bar = trange(0, count, batch_size)
-    for _ in bar:
-        batch = next(iterator)
-        input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
-        true_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
+    for peshechka in [0.05, 0.1, 0.15, 0.2, 0.25, 0.3]:
+        metric = BLEUScore().to(device)
+        bar = trange(0, count, batch_size)
+        for _ in bar:
+            batch = next(iterator)
+            input_ids = batch['input_ids']
+            attention_mask = batch['attention_mask']
+            true_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
 
-        batch = t5_tok(true_str, padding=True, max_length=128, return_tensors="pt")
-        batch = dict_to_device(batch, device)
-        input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
+            batch = t5_tok(true_str, padding=True, max_length=128, return_tensors="pt")
+            batch = dict_to_device(batch, device)
+            input_ids = batch['input_ids']
+            attention_mask = batch['attention_mask']
 
-        logits = model.forward(input_ids=input_ids, attention_mask=attention_mask)
-        # [BS; SEQ_LEN; |Vocab|]
-        restored_ids = logits.argmax(dim=-1)
+            logits = model.forward(input_ids=input_ids, attention_mask=attention_mask)
+            # [BS; SEQ_LEN; |Vocab|]
+            restored_ids = logits.argmax(dim=-1)
 
-        random_ids = torch.randint_like(input_ids, high=len(bert_tok.vocab))
-        mask = torch.rand_like(input_ids.float()) < peshechka
-        input_ids_2 = torch.where(mask, random_ids, input_ids)
-        logits_2 = model.forward(input_ids=input_ids_2, attention_mask=attention_mask)
-        restored_ids_2 = logits_2.argmax(dim=-1)
+            random_ids = torch.randint_like(input_ids, high=len(bert_tok.vocab))
+            mask = torch.rand_like(input_ids.float()) < peshechka
+            input_ids_2 = torch.where(mask, random_ids, input_ids)
+            logits_2 = model.forward(input_ids=input_ids_2, attention_mask=attention_mask)
+            restored_ids_2 = logits_2.argmax(dim=-1)
 
-        restored_str = t5_tok.batch_decode(restored_ids, skip_special_tokens=True)
-        restored_str_2 = t5_tok.batch_decode(restored_ids_2, skip_special_tokens=True)
-        restored_str_2 = [[x] for x in restored_str_2]
-        metric.update(restored_str, restored_str_2)
-        bar.set_description(f'bleu_metric: {metric.compute().item():.5f}')
-    print(f'bleu_metric: {metric.compute().item():.5f}\n', flush=True)
+            restored_str = t5_tok.batch_decode(restored_ids, skip_special_tokens=True)
+            restored_str_2 = t5_tok.batch_decode(restored_ids_2, skip_special_tokens=True)
+            restored_str_2 = [[x] for x in restored_str_2]
+            metric.update(restored_str, restored_str_2)
+            bar.set_description(f'bleu_metric: {metric.compute().item():.5f}, p: {peshechka}')
+        print(f'bleu_metric: {metric.compute().item():.5f}, p: {peshechka}\n', flush=True)
+
 
 
 import argparse

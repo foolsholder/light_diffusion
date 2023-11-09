@@ -41,11 +41,29 @@ class T5EncoderModel(HuggingFaceT5EncoderModel):
         )
 
 
+class Decoder(torch.nn.Module):
+    def __init__(self, input_size, hidden_size=768, vocab_size=32100, layer_norm_eps=1e-12):
+        super().__init__()
+        self.dense = torch.nn.Linear(input_size, hidden_size)
+        self.act_fn = torch.nn.GELU()
+        self.LayerNorm = torch.nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+
+        self.decoder = torch.nn.Linear(hidden_size, vocab_size, bias=False)
+        self.bias = torch.nn.Parameter(torch.zeros(vocab_size))
+        self.decoder.bias = self.bias
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.act_fn(hidden_states)
+        hidden_states = self.LayerNorm(hidden_states)
+        hidden_states = self.decoder(hidden_states)
+        return hidden_states
+
+
 class T5EncoderPlusSlavaHead(HuggingFaceT5EncoderModel):
     def __init__(self, config):
         super().__init__(config)
-        config = BertConfig.from_pretrained('bert-base-uncased')
-        self.cls = BertOnlyMLMHead(config)
+        self.cls = Decoder(768)
         decoder_path = "data/new_slava_ckpt/decoder-t5_base-wikipedia-128.pth"
         self.cls.load_state_dict(
             torch.load(
