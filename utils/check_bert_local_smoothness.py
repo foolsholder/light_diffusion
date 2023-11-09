@@ -59,9 +59,15 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     bar = trange(0, count, batch_size)
     for _ in bar:
         batch = next(iterator)
+        input_ids = batch['input_ids']
+        attention_mask = batch['attention_mask']
+        true_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
+
+        batch = bert_tok(true_str, padding=True, max_length=128, return_tensors="pt")
         batch = dict_to_device(batch, device)
         input_ids = batch['input_ids']
         attention_mask = batch['attention_mask']
+
         logits = model.forward(input_ids=input_ids, attention_mask=attention_mask)
         # [BS; SEQ_LEN; |Vocab|]
         restored_ids = logits.argmax(dim=-1)

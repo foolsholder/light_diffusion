@@ -10,7 +10,7 @@ from hydra.utils import instantiate
 import os
 import os.path as osp
 
-from transformers.models.bert.modeling_bert import BertOnlyMLMHead
+from transformers.models.bert.modeling_bert import BertOnlyMLMHead, BertConfig
 from transformers.models.t5.modeling_t5 import (
     BaseModelOutputWithPastAndCrossAttentions, \
     T5EncoderModel as HuggingFaceT5EncoderModel,
@@ -44,6 +44,7 @@ class T5EncoderModel(HuggingFaceT5EncoderModel):
 class T5EncoderPlusSlavaHead(HuggingFaceT5EncoderModel):
     def __init__(self, config):
         super().__init__(config)
+        config = BertConfig.from_pretrained('bert-base-uncased')
         self.cls = BertOnlyMLMHead(config)
         decoder_path = "data/new_slava_ckpt/decoder-t5_base-wikipedia-128.pth"
         self.cls.load_state_dict(
