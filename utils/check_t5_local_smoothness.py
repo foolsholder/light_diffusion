@@ -24,6 +24,7 @@ from diffusion import Config
 import diffusion
 from datasets import load_dataset
 from diffusion.models.contextual_denoising.modeling_noisy_encoder import BertEncoderPlusSlavaHead
+from diffusion.models.contextual_denoising.modeling_clean_encoder import T5EncoderPlusSlavaHead
 from torchmetrics import BLEUScore
 
 
@@ -31,6 +32,7 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     seed_everything(1337, workers=True)
 
     bert_tok: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
+    t5_tok: T5TokenizerFast = T5TokenizerFast.from_pretrained('t5-base')
 
     dataset = load_dataset("Graphcore/wikipedia-bert-128", split='train')
     dataset.remove_columns(["token_type_ids", "labels", "next_sentence_label"])
@@ -46,8 +48,8 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     iterator = iter(dataloader)
     device = 'cuda:0'
 
-    config = BertConfig.from_pretrained('bert-base-uncased')
-    model = BertEncoderPlusSlavaHead(config)
+    config = T5Config.from_pretrained('t5-base')
+    model = T5EncoderPlusSlavaHead(config)
     for param in model.parameters():
         param.requires_grad = False
     model.eval().to(device)
@@ -59,9 +61,15 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     bar = trange(0, count, batch_size)
     for _ in bar:
         batch = next(iterator)
+        input_ids = batch['input_ids']
+        attention_mask = batch['attention_mask']
+        true_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
+
+        batch = t5_tok(true_str, padding=True, max_length=128, return_tensors="pt")
         batch = dict_to_device(batch, device)
         input_ids = batch['input_ids']
         attention_mask = batch['attention_mask']
+
         logits = model.forward(input_ids=input_ids, attention_mask=attention_mask)
         # [BS; SEQ_LEN; |Vocab|]
         restored_ids = logits.argmax(dim=-1)
@@ -72,8 +80,8 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
         logits_2 = model.forward(input_ids=input_ids_2, attention_mask=attention_mask)
         restored_ids_2 = logits_2.argmax(dim=-1)
 
-        restored_str = bert_tok.batch_decode(restored_ids, skip_special_tokens=True)
-        restored_str_2 = bert_tok.batch_decode(restored_ids_2, skip_special_tokens=True)
+        restored_str = t5_tok.batch_decode(restored_ids, skip_special_tokens=True)
+        restored_str_2 = t5_tok.batch_decode(restored_ids_2, skip_special_tokens=True)
         restored_str_2 = [[x] for x in restored_str_2]
         metric.update(restored_str, restored_str_2)
         bar.set_description(f'bleu_metric: {metric.compute().item():.5f}')
