@@ -81,14 +81,8 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
             # [BS; SEQ_LEN; |Vocab|]
             restored_ids = logits.argmax(dim=-1)
 
-            random_ids = torch.randint_like(input_ids, high=len(bert_tok.vocab))
-            mask = torch.rand_like(input_ids.float()) < peshechka
-            input_ids_2 = torch.where(mask, random_ids, input_ids)
-            logits_2 = model.forward(input_ids=input_ids_2, attention_mask=attention_mask)
-            restored_ids_2 = logits_2.argmax(dim=-1)
-
-            restored_str = bert_tok.batch_decode(restored_ids, skip_special_tokens=True)
-            restored_str_2 = bert_tok.batch_decode(restored_ids_2, skip_special_tokens=True)
+            restored_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
+            restored_str_2 = bert_tok.batch_decode(restored_ids, skip_special_tokens=True)
             restored_str_2 = [[x] for x in restored_str_2]
             metric.update(restored_str, restored_str_2)
             bar.set_description(f'bleu_metric: {metric.compute().item():.5f}, p: {peshechka}')

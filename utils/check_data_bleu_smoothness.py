@@ -45,10 +45,17 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     )
     iterator = iter(dataloader)
     device = 'cuda:0'
+
+    config = BertConfig.from_pretrained('bert-base-uncased')
+    model = BertEncoderPlusSlavaHead(config)
+    for param in model.parameters():
+        param.requires_grad = False
+    model.eval().to(device)
+
     save_folder = osp.join('generated_texts', "local_smoothness")
     if not osp.exists(save_folder):
         os.makedirs(save_folder)
-    for peshechka in [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]:
+    for peshechka in [0.3]:
         metric = BLEUScore().to(device)
         dataloader = DataLoader(
             dataset,
@@ -66,6 +73,7 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
             true_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
 
             batch = bert_tok(true_str, padding=True, max_length=128, return_tensors="pt")
+            batch = dict_to_device(batch, device)
             input_ids = batch['input_ids']
             #attention_mask = batch['attention_mask']
 
@@ -81,7 +89,7 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
 
             restored_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
             restored_str_2 = bert_tok.batch_decode(input_ids_2, skip_special_tokens=True)
-            #restored_str_2 = [[x] for x in restored_str_2]
+            restored_str_2 = [[x] for x in restored_str_2]
             metric.update(restored_str, restored_str_2)
             bar.set_description(f'bleu_metric: {metric.compute().item():.5f}, p: {peshechka}')
         print(f'bleu_metric: {metric.compute().item():.5f}, p: {peshechka}\n', flush=True)
@@ -99,5 +107,6 @@ def parse_args():
 if __name__ == '__main__':
     os.environ['EXP_PATH'] = osp.abspath('experiments/')
     os.environ['BASE_PATH'] = osp.abspath('./')
+    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     args = parse_args()
     main(args.count, args.batch_size, args.p)
