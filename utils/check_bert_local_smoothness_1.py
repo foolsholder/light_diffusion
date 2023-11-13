@@ -55,6 +55,7 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     save_folder = osp.join('generated_texts', "local_smoothness")
     if not osp.exists(save_folder):
         os.makedirs(save_folder)
+    texts = []
     for peshechka in [0.3]:
         metric = BLEUScore().to(device)
         dataloader = DataLoader(
@@ -83,10 +84,18 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
 
             restored_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
             restored_str_2 = bert_tok.batch_decode(restored_ids, skip_special_tokens=True)
+            texts += [
+                {
+                    'GT': restored_str,
+                    'RESTORED': restored_str_2
+                }
+            ]
             restored_str_2 = [[x] for x in restored_str_2]
             metric.update(restored_str, restored_str_2)
             bar.set_description(f'bleu_metric: {metric.compute().item():.5f}, p: {peshechka}')
         print(f'bleu_metric: {metric.compute().item():.5f}, p: {peshechka}\n', flush=True)
+    with open('gen.json', 'w') as fout:
+        json.dump(texts, indent=4, fp=fout)
 
 
 import argparse
