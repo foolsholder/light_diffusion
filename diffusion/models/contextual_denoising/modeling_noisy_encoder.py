@@ -68,6 +68,8 @@ class BertLMHeadModel(HuggingFaceBertLMHeadModel):
 class BertEncoderPlusSlavaHead(HuggingFaceBertLMHeadModel):
     def __init__(self, config):
         super().__init__(config)
+
+    def load_head(self):
         decoder_path = "data/new_slava_ckpt/decoder-wikipedia-128.pth"
         self.cls.load_state_dict(
             torch.load(
@@ -77,7 +79,7 @@ class BertEncoderPlusSlavaHead(HuggingFaceBertLMHeadModel):
                 ), map_location='cpu'
             )["decoder"]
         )
-        print("RESTORED SLAVYAN T5")
+        print("RESTORED SLAVYAN BERT")
 
     def forward(
             self,
