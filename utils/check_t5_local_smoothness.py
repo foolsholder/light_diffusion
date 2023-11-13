@@ -103,5 +103,6 @@ def parse_args():
 if __name__ == '__main__':
     os.environ['EXP_PATH'] = osp.abspath('experiments/')
     os.environ['BASE_PATH'] = osp.abspath('./')
+    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     args = parse_args()
     main(args.count, args.batch_size, args.p)
