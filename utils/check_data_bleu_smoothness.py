@@ -45,13 +45,6 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     )
     iterator = iter(dataloader)
     device = 'cuda:0'
-
-    config = BertConfig.from_pretrained('bert-base-uncased')
-    model = BertEncoderPlusSlavaHead(config)
-    for param in model.parameters():
-        param.requires_grad = False
-    model.eval().to(device)
-
     save_folder = osp.join('generated_texts', "local_smoothness")
     if not osp.exists(save_folder):
         os.makedirs(save_folder)
@@ -70,11 +63,10 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
             batch = next(iterator)
             input_ids = batch['input_ids']
             #attention_mask = batch['attention_mask']
-            #true_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
+            true_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
 
-            #batch = bert_tok(true_str, padding=True, max_length=128, return_tensors="pt")
-            #batch = dict_to_device(batch, device)
-            #input_ids = batch['input_ids']
+            batch = bert_tok(true_str, padding=True, max_length=128, return_tensors="pt")
+            input_ids = batch['input_ids']
             #attention_mask = batch['attention_mask']
 
             #logits = model.forward(input_ids=input_ids, attention_mask=attention_mask)
