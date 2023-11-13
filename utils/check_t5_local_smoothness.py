@@ -82,7 +82,7 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
             logits_2 = model.forward(input_ids=input_ids_2, attention_mask=attention_mask)
             restored_ids_2 = logits_2.argmax(dim=-1)
 
-            restored_str = t5_tok.batch_decode(restored_ids, skip_special_tokens=True)
+            restored_str = t5_tok.batch_decode(input_ids, skip_special_tokens=True)
             restored_str_2 = t5_tok.batch_decode(restored_ids_2, skip_special_tokens=True)
             restored_str_2 = [[x] for x in restored_str_2]
             metric.update(restored_str, restored_str_2)
