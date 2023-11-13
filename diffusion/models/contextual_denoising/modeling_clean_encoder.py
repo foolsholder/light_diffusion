@@ -64,6 +64,8 @@ class T5EncoderPlusSlavaHead(HuggingFaceT5EncoderModel):
     def __init__(self, config):
         super().__init__(config)
         self.cls = Decoder(768)
+
+    def load_head(self):
         decoder_path = "data/new_slava_ckpt/decoder-t5_base-wikipedia-128.pth"
         self.cls.load_state_dict(
             torch.load(

@@ -47,7 +47,8 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     device = 'cuda:0'
 
     config = BertConfig.from_pretrained('bert-base-uncased')
-    model = BertEncoderPlusSlavaHead(config)
+    model = BertEncoderPlusSlavaHead.from_pretrained('bert-base-uncased')
+    model.load_head()
     for param in model.parameters():
         param.requires_grad = False
     model.eval().to(device)
@@ -55,7 +56,7 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     save_folder = osp.join('generated_texts', "local_smoothness")
     if not osp.exists(save_folder):
         os.makedirs(save_folder)
-    for peshechka in [0.3]:
+    for peshechka in [1, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]:
         metric = BLEUScore().to(device)
         dataloader = DataLoader(
             dataset,

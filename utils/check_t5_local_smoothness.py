@@ -41,7 +41,8 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     device = 'cuda:0'
 
     config = T5Config.from_pretrained('t5-base')
-    model = T5EncoderPlusSlavaHead(config)
+    model = T5EncoderPlusSlavaHead.from_pretrained('t5-base')
+    model.load_head()
     for param in model.parameters():
         param.requires_grad = False
     model.eval().to(device)
