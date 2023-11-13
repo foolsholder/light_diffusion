@@ -47,7 +47,8 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
     device = 'cuda:0'
 
     config = BertConfig.from_pretrained('bert-base-uncased')
-    model = BertEncoderPlusSlavaHead(config)
+    model = BertEncoderPlusSlavaHead.from_pretrained('bert-base-uncased')
+    model.load_head()
     for param in model.parameters():
         param.requires_grad = False
     model.eval().to(device)
