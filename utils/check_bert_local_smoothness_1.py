@@ -84,12 +84,13 @@ def main(count: int = 64, batch_size: int = 64, peshechka: float = 0.3):
 
             restored_str = bert_tok.batch_decode(input_ids, skip_special_tokens=True)
             restored_str_2 = bert_tok.batch_decode(restored_ids, skip_special_tokens=True)
-            texts += [
-                {
-                    'GT': restored_str,
-                    'RESTORED': restored_str_2
-                }
-            ]
+            for gt, pred in zip(restored_str, restored_str_2):
+                texts += [
+                    {
+                        'GT': gt,
+                        'RESTORED': pred
+                    }
+                ]
             restored_str_2 = [[x] for x in restored_str_2]
             metric.update(restored_str, restored_str_2)
             bar.set_description(f'bleu_metric: {metric.compute().item():.5f}, p: {peshechka}')
