@@ -3,10 +3,14 @@ _recursive_: False
 
 train_dataset_cfg:
   _target_: "diffusion.dataset.wiki_dataset.XSUMDataset"
+  max_src_length: 512
+  max_tgt_length: 64
   train: True
 
 valid_dataset_cfg:
   _target_: "diffusion.dataset.wiki_dataset.XSUMDataset"
+  max_src_length: ${datamodule.train_dataset_cfg.max_src_length}
+  max_tgt_length: ${datamodule.train_dataset_cfg.max_tgt_length}
   train: False
 
 train_dataloader_cfg:

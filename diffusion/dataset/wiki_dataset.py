@@ -28,7 +28,7 @@ class XSUMDataset(Dataset):
         self.max_tgt_length = max_tgt_length
 
         split = 'train' if train else 'validation'
-        self.dataset = load_dataset("GEM/xsum", split=split)
+        self.dataset = load_dataset("EdinburghNLP/xsum", split=split)
 
     def __len__(self) -> int:
         return len(self.dataset)
@@ -40,7 +40,7 @@ class XSUMDataset(Dataset):
         obj = self.dataset[index]
 
         clean_part_sentence = obj['document']
-        noisy_part_sentence = obj['target']
+        noisy_part_sentence = obj['summary']
 
         result: Dict[str, List[int]] = dict()
         for sentence, prefix, tokenizer, max_length in zip(
