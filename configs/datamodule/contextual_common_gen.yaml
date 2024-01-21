@@ -1,0 +1,28 @@
+_target_: "diffusion.dataset.SimpleDataModule"
+_recursive_: False
+
+train_dataset_cfg:
+  _target_: "diffusion.dataset.wiki_dataset.CommonGenDataset"
+  max_src_length: 128
+  max_tgt_length: 128
+  train: True
+
+valid_dataset_cfg:
+  _target_: "diffusion.dataset.wiki_dataset.CommonGenDataset"
+  max_src_length: ${datamodule.train_dataset_cfg.max_src_length}
+  max_tgt_length: ${datamodule.train_dataset_cfg.max_tgt_length}
+  train: False
+
+train_dataloader_cfg:
+  _target_: "torch.utils.data.DataLoader"
+  batch_size: 256
+  num_workers: 8
+  drop_last: True
+  shuffle: True
+
+valid_dataloader_cfg:
+  _target_: "torch.utils.data.DataLoader"
+  batch_size: ${datamodule.train_dataloader_cfg.batch_size}
+  num_workers: ${datamodule.train_dataloader_cfg.num_workers}
+  drop_last: False
+  shuffle: False

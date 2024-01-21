@@ -2,7 +2,7 @@ from .wiki_dataset import (
     WikiDataset, ContextualSST2Dataset,
     ContextualQQPDataset, ContextualColaDataset,
     ContextualRTEDataset,
-    ContextualARTDataset, XSUMDataset
+    ContextualARTDataset, XSUMDataset, CommonGenDataset
 )
 
 from .enc_normalizer import EncNormalizer

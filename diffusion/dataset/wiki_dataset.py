@@ -3,6 +3,8 @@ import os
 import numpy as np
 import pandas as pd
 from functools import partial
+import random
+from copy import copy
 
 
 from torch.utils.data import Dataset, DataLoader
@@ -11,6 +13,57 @@ from typing import Union, Dict, Any, Optional, List
 from transformers import BertTokenizerFast, T5TokenizerFast
 from datasets import load_dataset
 from json import dump, load
+
+
+class CommonGenDataset(Dataset):
+    def __init__(
+            self,
+            train: bool = True,
+            max_src_length: int = 128,
+            max_tgt_length: int = 128
+    ):
+        super(XSUMDataset, self).__init__()
+
+        self.noisy_tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
+        self.clean_tokenizer: T5TokenizerFast = T5TokenizerFast.from_pretrained('t5-base')
+        self.max_src_length = max_src_length
+        self.max_tgt_length = max_tgt_length
+
+        split = 'train' if train else 'validation'
+        self.dataset = load_dataset("allenai/common_gen", split=split)
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(
+            self,
+            index: int
+    ):
+        obj = self.dataset[index]
+
+        concepts: List[str] = copy(obj['concepts'])
+        random.shuffle(concepts)
+        
+        clean_part_sentence = "sentence about " + ", ".joint(obj['concepts']) + "."
+        noisy_part_sentence = obj['target']
+
+        result: Dict[str, List[int]] = dict()
+        for sentence, prefix, tokenizer, max_length in zip(
+            [clean_part_sentence, noisy_part_sentence],
+            ['clean_', 'noisy_'],
+            [self.clean_tokenizer, self.noisy_tokenizer],
+            [self.max_src_length, self.max_tgt_length]
+        ):
+            tokenized: Dict[str, List[int]] = tokenizer(
+                sentence,
+                truncation=True,
+                padding="max_length",
+                max_length=max_length
+            )
+            for k, v in tokenized.items():
+                result[prefix + k] = torch.LongTensor(v)
+
+        return result
 
 
 class XSUMDataset(Dataset):
