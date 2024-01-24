@@ -53,12 +53,14 @@ class BertLMHeadModel(HuggingFaceBertLMHeadModel):
             self,
             *args, **kwargs
     ):
+        attention_mask = kwargs.get('attention_mask')
         outputs: BaseModelOutputWithPoolingAndCrossAttentions = self.bert(
             *args, **kwargs
         )
 
         sequence_output = outputs.last_hidden_state
         normed = self.enc_normalizer.normalize(sequence_output)
+        normed = normed * attention_mask[:, :, None]
         return EncoderOutput(
             normed=normed,
             true=sequence_output

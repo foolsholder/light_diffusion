@@ -22,7 +22,7 @@ class CommonGenDataset(Dataset):
             max_src_length: int = 128,
             max_tgt_length: int = 128
     ):
-        super(XSUMDataset, self).__init__()
+        super(CommonGenDataset, self).__init__()
 
         self.noisy_tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained('bert-base-uncased')
         self.clean_tokenizer: T5TokenizerFast = T5TokenizerFast.from_pretrained('t5-base')
@@ -44,7 +44,7 @@ class CommonGenDataset(Dataset):
         concepts: List[str] = copy(obj['concepts'])
         random.shuffle(concepts)
         
-        clean_part_sentence = "sentence about " + ", ".joint(obj['concepts']) + "."
+        clean_part_sentence = "sentence about " + ", ".join(obj['concepts']) + "."
         noisy_part_sentence = obj['target']
 
         result: Dict[str, List[int]] = dict()
