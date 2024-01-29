@@ -34,7 +34,14 @@ def process_eval(gen_list: List[str], tgt_list: List[str]):
     for index, sentence in enumerate(tqdm(gen_list)):
 
         target = tgt_list[index]
-        scores = scorer.score(sentence, target)
+        sent = ""
+        for symb in sentence:
+            sent += symb
+            if symb == '.':
+                pass
+                #break
+        # print(sent)
+        scores = scorer.score(sent, target)
 
         rouge_1 = scores['rouge1'].fmeasure
         rouge_2 = scores['rouge2'].fmeasure
@@ -74,12 +81,13 @@ def main(generated_text_folder_name: str, ckpt_name: str):
     gen_list = []
     tgt_list = []
     for sent in texts:
-        gen_list += [sent["CONDITION"]]
-        tgt_list += [sent["GENERATED"]]
+        gen_list += [sent["GENERATED"]]
+        tgt_list += [sent["GT"]]
     metrics = process_eval(gen_list, tgt_list)
     # print(metrics)
     with open(osp.join(save_folder, Path(ckpt_name).stem + '_rouge.json'), 'w') as fout:
         json.dump(metrics, fout, indent=4)
+    print(json.dumps(metrics, indent=4))
 
 import argparse
 def parse_args():

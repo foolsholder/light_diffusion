@@ -1,16 +1,14 @@
 #rm -r wandb
-export WANDB_MODE=offline
+#export WANDB_MODE=offline
 HYDRA_FULL_ERROR=1 python3 utils/train.py \
-    project=cross_attention exp_name=wiki-pretrain-nam-noisy-067-bs128-t2 \
+    project=cross_attention exp_name=commongen-baseline-lr5e-5-fixdataset-wopret-fixencs \
     +lightning_wrapper=slava_contextual \
     +lightning_wrapper/optim_partial=slava_adam \
-    +lightning_wrapper/sched_partial=linear_warmup \
-    ++lightning_wrapper.optim_partial.lr=2e-4 \
+    ++lightning_wrapper.optim_partial.lr=5e-5 \
     +lightning_wrapper/sde_cfg=cosine_sd \
-    ++lightning_wrapper.sched_partial.warmup_start_lr=1e-6 \
-    every_n_train_steps=50000 \
-    +datamodule=wiki \
-    datamodule.train_dataloader_cfg.batch_size=128 \
-    datamodule.train_dataloader_cfg.num_workers=10 \
-    max_steps=1000000
+    every_n_train_steps=5000 \
+    +datamodule=contextual_common_gen \
+    datamodule.train_dataloader_cfg.batch_size=256 \
+    datamodule.train_dataloader_cfg.num_workers=8 \
+    max_steps=120000
 #python3 utils/validate.py experiments/smth 0
